@@ -8,6 +8,9 @@ import {
   WalletMultiButton,
 } from '@solana/wallet-adapter-react-ui'
 import { PhantomWalletAdapter } from '@solana/wallet-adapter-wallets'
+// remove unsupported imports
+// import { SolflareWalletAdapter, GlowWalletAdapter } from '@solana/wallet-adapter-wallets'
+import { clusterApiUrl } from '@solana/web3.js'
 import { useWallet } from '@solana/wallet-adapter-react'
 
 import './App.css'
@@ -31,6 +34,7 @@ import { getPet, savePet } from './api/client'
 
 // near imports
 import GroupAdventure from './components/GroupAdventure'
+import WalletHelp from './components/WalletHelp'
 
 const AI_RESPONSE_DELAY_MS = 800
 
@@ -377,6 +381,7 @@ function MainApp() {
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           <WalletMultiButton />
+          <WalletHelp connected={!!window?.solana?.isConnected} />
           <AudioPlayer />
           <ThemeToggle />
         </div>
@@ -444,9 +449,12 @@ function MainApp() {
 }
 
 export default function App() {
-  const wallets = [new PhantomWalletAdapter()]
+  const wallets = useMemo(() => [
+    new PhantomWalletAdapter(),
+  ], [])
+  const endpoint = clusterApiUrl('devnet')
   return (
-    <ConnectionProvider endpoint="https://api.devnet.solana.com">
+    <ConnectionProvider endpoint={endpoint}>
       <WalletProvider wallets={wallets} autoConnect>
         <WalletModalProvider>
           <MainApp />
