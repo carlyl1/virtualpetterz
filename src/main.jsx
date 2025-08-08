@@ -6,6 +6,7 @@ import About from './pages/About'
 import Terms from './pages/Terms'
 import Privacy from './pages/Privacy'
 import Status from './pages/Status'
+import Roadmap from './pages/Roadmap'
 
 import '@solana/wallet-adapter-react-ui/styles.css'
 
@@ -15,6 +16,7 @@ const router = createBrowserRouter([
   { path: '/terms', element: <Terms /> },
   { path: '/privacy', element: <Privacy /> },
   { path: '/status', element: <Status /> },
+  { path: '/roadmap', element: <Roadmap /> },
 ])
 
 ReactDOM.createRoot(document.getElementById('root')).render(
