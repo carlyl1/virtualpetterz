@@ -20,8 +20,14 @@ export default function GroupAdventure({ walletPubkey, onExit }) {
   const [room, setRoom] = useState(null)
   const [roomIdInput, setRoomIdInput] = useState('')
   const [status, setStatus] = useState('')
+  const [now, setNow] = useState(Date.now())
 
   useEffect(() => { (async () => setPack(await loadAdventurePack()))() }, [])
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(t)
+  }, [])
 
   useEffect(() => {
     if (!room?.id) return
@@ -38,6 +44,8 @@ export default function GroupAdventure({ walletPubkey, onExit }) {
   const choices = node?.choices || []
 
   const myWallet = walletPubkey || 'guest'
+  const myVote = room?.votes?.[myWallet]
+  const remaining = Math.max(0, Math.floor(((room?.expiresAt || 0) - now) / 1000))
 
   const createRoom = async () => {
     setStatus('Creating...')
@@ -74,6 +82,17 @@ export default function GroupAdventure({ walletPubkey, onExit }) {
     }
   }
 
+  const copyLink = async () => {
+    if (!room?.id) return
+    const url = `${location.origin}/#group:${room.id}`
+    try {
+      await navigator.clipboard.writeText(url)
+      setStatus('Room link copied!')
+    } catch {
+      setStatus('Copy failed')
+    }
+  }
+
   return (
     <div className="battle-container">
       <h2>Group Adventure</h2>
@@ -86,13 +105,16 @@ export default function GroupAdventure({ walletPubkey, onExit }) {
       )}
       {room && (
         <div style={{ marginTop: 8 }}>
-          <div style={{ fontSize: 12, color: '#9cf' }}>Room ID: {room.id} · Node: {room.nodeId} · Members: {room.members?.length || 0}</div>
+          <div style={{ fontSize: 12, color: '#9cf' }}>Room ID: {room.id} · Node: {room.nodeId} · Members: {room.members?.length || 0} · Time left: {remaining}s</div>
+          <div style={{ marginTop: 6, display: 'flex', gap: 8, justifyContent: 'center' }}>
+            <button onClick={copyLink}>Copy room link</button>
+          </div>
           <div style={{ marginTop: 8, background: '#111', padding: 10, borderRadius: 6 }}>
             {(node?.text || 'Waiting...').replace('{pet}', 'your party')}
           </div>
           <div style={{ marginTop: 10, display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
             {choices.map((c) => (
-              <button key={c.id} onClick={() => vote(c)}>{c.label}</button>
+              <button key={c.id} onClick={() => vote(c)} disabled={!!myVote} style={{ outline: myVote?.choiceId === c.id ? '3px solid #ffaa00' : 'none' }}>{c.label}</button>
             ))}
           </div>
         </div>
