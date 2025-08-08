@@ -8,6 +8,7 @@ import {
   WalletMultiButton,
 } from '@solana/wallet-adapter-react-ui'
 import { PhantomWalletAdapter } from '@solana/wallet-adapter-wallets'
+import { useWallet } from '@solana/wallet-adapter-react'
 
 import './App.css'
 import Battle from './components/Battle'
@@ -24,6 +25,7 @@ import { incrementQuest } from './quests/manager'
 import PetCanvas from './components/PetCanvas'
 import BottomDock from './components/BottomDock'
 import ThemeToggle from './components/ThemeToggle'
+import SideDock from './components/SideDock'
 
 const AI_RESPONSE_DELAY_MS = 800
 
@@ -121,6 +123,7 @@ function PetActions({ onFeed, onPlay, mood }) {
 
 function HomeScreen({ selectedPet, setSelectedPet, goBattle, goAdventure, tokens, setTokens, openDaily, openLeaderboard, openQuests }) {
   const containerRef = useRef(null)
+  const wallet = useWallet()
 
   const [hunger, setHunger] = useState(65)
   const [happiness, setHappiness] = useState(65)
@@ -130,6 +133,8 @@ function HomeScreen({ selectedPet, setSelectedPet, goBattle, goAdventure, tokens
   const [showSelector, setShowSelector] = useState(!selectedPet)
   const [showShop, setShowShop] = useState(false)
   const [actionSignal, setActionSignal] = useState(null)
+
+  useEffect(() => { if (wallet?.publicKey) { const seed = wallet.publicKey.toBase58(); const variants = ['forest-fox','mystic-bunny','robo-cat']; const idx = [...seed].reduce((a,c)=>a+c.charCodeAt(0),0)%variants.length; setSelectedPet(variants[idx]); } }, [wallet?.publicKey])
 
   // Passive decay
   useEffect(() => {
@@ -213,6 +218,16 @@ function HomeScreen({ selectedPet, setSelectedPet, goBattle, goAdventure, tokens
       <PetActions onFeed={feedPet} onPlay={playWithPet} mood={mood} />
       {(isFeeding || isPlaying) && <div className="loading">Processing...</div>}
       <ChatBox onSend={handleChatSend} />
+      <SideDock
+        onFeed={feedPet}
+        onPlay={playWithPet}
+        onShop={() => setShowShop(true)}
+        onQuests={openQuests}
+        onAdventure={goAdventure}
+        onBattle={goBattle}
+        onDaily={openDaily}
+        onLeaderboard={openLeaderboard}
+      />
       <BottomDock
         onFeed={feedPet}
         onPlay={playWithPet}
