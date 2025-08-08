@@ -28,7 +28,7 @@ import ThemeToggle from './components/ThemeToggle'
 const AI_RESPONSE_DELAY_MS = 800
 
 async function chatWithOssModel(message) {
-  const url = import.meta.env.VITE_OSS_CHAT_URL || '/chat'
+  const url = import.meta.env.PUBLIC_CHAT_URL || '/chat'
   try {
     const res = await fetch(url, {
       method: 'POST',
