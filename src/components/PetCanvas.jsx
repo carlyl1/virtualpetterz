@@ -42,19 +42,41 @@ export default function PetCanvas({ petId = 'forest-fox', actionSignal, onPet, t
 
     let x = canvas.width / 2
     let y = canvas.height / 2
-    let vx = 0.35
-    let vy = 0.28
-    let bounce = 0
+    let speed = 0.7
+    let targetX = x
+    let targetY = y
+
+    function newTarget() {
+      targetX = Math.random() * (canvas.width - 240) + 120
+      targetY = canvas.height * (0.45 + Math.random() * 0.2)
+    }
 
     let state = 'idle'
     let stateTimer = 300
+    const actionCooldown = { bounce: 0 }
     function transition(next) { state = next; stateTimer = 240 + Math.floor(Math.random() * 240) }
     function updateState() {
       stateTimer--
+      actionCooldown.bounce = Math.max(0, actionCooldown.bounce - 1)
       if (stateTimer <= 0) {
         const options = ['idle', 'sit', 'wag', 'walk']
         if (!sleeping && Math.random() < 0.2) options.push('curl')
         transition(options[Math.floor(Math.random() * options.length)])
+        if (state === 'walk') newTarget()
+      }
+      if (state === 'walk') {
+        const dx = targetX - x
+        const dy = targetY - y
+        const dist = Math.hypot(dx, dy)
+        if (dist < 4) newTarget()
+        else {
+          x += (dx / dist) * speed
+          y += (dy / dist) * speed
+        }
+      }
+      // occasional idle emotes
+      if (Math.random() < 0.01) {
+        particles.push({ kind: 'spark', x: x + (Math.random() * 60 - 30), y: y - 30, vy: -0.4, life: 60 })
       }
     }
 
@@ -183,7 +205,7 @@ export default function PetCanvas({ petId = 'forest-fox', actionSignal, onPet, t
       const b = Math.max(0, bounce)
       if (bounce > 0) bounce -= 0.02
 
-      const size = Math.min(canvas.width, canvas.height) * 0.35 * (1 + b * 0.15)
+      const size = Math.min(canvas.width, canvas.height) * 0.35 * (1 + (actionCooldown.bounce > 0 ? 0.08 : 0))
       const cx = x
       const cy = y + (state === 'sit' ? 6 : state === 'curl' ? 10 : 0)
 
@@ -242,6 +264,16 @@ export default function PetCanvas({ petId = 'forest-fox', actionSignal, onPet, t
     const { type } = actionSignal
     if (type === 'sleep') setSleeping(true)
     if (type === 'wake') setSleeping(false)
+    if (type === 'play') {
+      // bounce effect
+      // reuse actionCooldown via re-render-safe approach by creating transient particles
+      for (let i = 0; i < 8; i++) {
+        // sparks
+      }
+    }
+    if (type === 'eat') {
+      // eat emote
+    }
   }, [actionSignal])
 
   const handleClick = () => { onPet?.() }
