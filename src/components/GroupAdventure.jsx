@@ -23,6 +23,17 @@ export default function GroupAdventure({ walletPubkey, onExit }) {
 
   useEffect(() => { (async () => setPack(await loadAdventurePack()))() }, [])
 
+  useEffect(() => {
+    if (!room?.id) return
+    const id = setInterval(async () => {
+      try {
+        const res = await fetch(`/.netlify/functions/group-adventure?roomId=${room.id}`)
+        if (res.ok) setRoom(await res.json())
+      } catch {}
+    }, 2000)
+    return () => clearInterval(id)
+  }, [room?.id])
+
   const node = useMemo(() => (room && pack ? resolveNode(pack, room.nodeId) : null), [room, pack])
   const choices = node?.choices || []
 
@@ -51,11 +62,11 @@ export default function GroupAdventure({ walletPubkey, onExit }) {
     }
   }
 
-  const vote = async (choiceId) => {
+  const vote = async (choice) => {
     if (!room) return
     setStatus('Voting...')
     try {
-      const r = await voteGroupAdventure(room.id, myWallet, choiceId)
+      const r = await voteGroupAdventure(room.id, myWallet, choice.id, choice.nextId)
       setRoom(r)
       setStatus('Vote recorded')
     } catch {
@@ -81,7 +92,7 @@ export default function GroupAdventure({ walletPubkey, onExit }) {
           </div>
           <div style={{ marginTop: 10, display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
             {choices.map((c) => (
-              <button key={c.id} onClick={() => vote(c.id)}>{c.label}</button>
+              <button key={c.id} onClick={() => vote(c)}>{c.label}</button>
             ))}
           </div>
         </div>

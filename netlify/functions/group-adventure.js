@@ -2,7 +2,7 @@
 // Rooms API (ephemeral in-memory; replace with persistent store later)
 // POST /group-adventure { action: 'create', packId }
 // POST /group-adventure { action: 'join', roomId, wallet }
-// POST /group-adventure { action: 'vote', roomId, wallet, choiceId }
+// POST /group-adventure { action: 'vote', roomId, wallet, choiceId, nextId }
 // GET  /group-adventure?roomId=XYZ -> room state
 
 let rooms = new Map()
@@ -37,20 +37,22 @@ exports.handler = async (event) => {
         return json(200, room)
       }
       if (action === 'vote') {
-        const { roomId, wallet, choiceId } = body
+        const { roomId, wallet, choiceId, nextId } = body
         const room = rooms.get(roomId)
         if (!room) return json(404, { error: 'not_found' })
         if (Date.now() > room.expiresAt) {
-          // Tally and advance to next node
+          // Tally and advance to next node using nextId
           const tally = {}
-          Object.values(room.votes).forEach((c) => { tally[c] = (tally[c] || 0) + 1 })
+          Object.values(room.votes).forEach((v) => {
+            const key = v.nextId || v.choiceId
+            tally[key] = (tally[key] || 0) + 1
+          })
           const winner = Object.entries(tally).sort((a, b) => b[1] - a[1])[0]?.[0]
-          // For now, just append choice id to node path
-          room.nodeId = winner || room.nodeId
+          if (winner) room.nodeId = winner
           room.votes = {}
           room.expiresAt = Date.now() + 60 * 1000
         }
-        room.votes[wallet] = choiceId
+        room.votes[wallet] = { choiceId, nextId }
         rooms.set(roomId, room)
         return json(200, room)
       }

@@ -32,10 +32,10 @@ export async function joinGroupAdventure(roomId, wallet) {
   return res.json()
 }
 
-export async function voteGroupAdventure(roomId, wallet, choiceId) {
+export async function voteGroupAdventure(roomId, wallet, choiceId, nextId) {
   const res = await fetch(`/.netlify/functions/group-adventure`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'vote', roomId, wallet, choiceId }),
+    body: JSON.stringify({ action: 'vote', roomId, wallet, choiceId, nextId }),
   })
   if (!res.ok) throw new Error('ga_vote_failed')
   return res.json()
