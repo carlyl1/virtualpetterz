@@ -1,9 +1,0 @@
-Frontend (.env) example
-------------------------
-VITE_OSS_CHAT_URL=http://localhost:8787/chat
-
-Server (.env) example
----------------------
-HF_MODEL_URL=https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2
-HF_API_KEY=hf_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-PORT=8787
