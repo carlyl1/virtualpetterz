@@ -177,6 +177,14 @@ function HomeScreen({ selectedPet, setSelectedPet, goBattle, goAdventure, tokens
     }
   }, [])
 
+  useEffect(() => {
+    const pk = wallet?.publicKey?.toBase58?.()
+    if (!pk) return
+    ;(async () => {
+      try { await fetch('/.netlify/functions/pet', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ wallet: pk, state: { hunger, happiness } }) }) } catch {}
+    })()
+  }, [hunger, happiness, wallet?.publicKey])
+
   const floatPlus = (text) => {
     const el = document.createElement('div')
     el.className = 'float-plus'
@@ -237,7 +245,12 @@ function HomeScreen({ selectedPet, setSelectedPet, goBattle, goAdventure, tokens
       )}
       {showShop && <Shop onClose={() => setShowShop(false)} onUseItem={handleUseItem} />}
       <div className="scene">
-        <PetCanvas petId={selectedPet} onPet={() => setHappiness((v)=>Math.min(100,v+5))} actionSignal={actionSignal} />
+        <PetCanvas petId={selectedPet} traits={(() => {
+          try {
+            const pk = wallet?.publicKey?.toBase58?.()
+            return generateTraitsFromPubkey(pk || 'guest')
+          } catch { return null }
+        })()} onPet={() => setHappiness((v)=>Math.min(100,v+5))} actionSignal={actionSignal} />
       </div>
       <div className="stats">
         <StatBar label="Hunger" value={hunger} />

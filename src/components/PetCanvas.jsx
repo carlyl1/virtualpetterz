@@ -6,7 +6,16 @@ const SPRITES = {
   'robo-cat': '/assets/pets/robo-cat.svg',
 }
 
-export default function PetCanvas({ petId = 'forest-fox', actionSignal, onPet }) {
+function paletteColors(palette) {
+  switch (palette) {
+    case 'pastel': return { bgTop: '#1b1d22', bgBot: '#101317', star: '#ffd37a88', accent: '#ffd37a' }
+    case 'dusk': return { bgTop: '#121420', bgBot: '#0b0e16', star: '#7aa4ff88', accent: '#7aa4ff' }
+    case 'holo': return { bgTop: '#141414', bgBot: '#0f1113', star: '#c0ffee88', accent: '#c0ffee' }
+    default: return { bgTop: '#0a0f0f', bgBot: '#0f1313', star: '#0ff9', accent: '#00ffcc' }
+  }
+}
+
+export default function PetCanvas({ petId = 'forest-fox', actionSignal, onPet, traits }) {
   const ref = useRef(null)
   const [sleeping, setSleeping] = useState(false)
 
@@ -20,7 +29,8 @@ export default function PetCanvas({ petId = 'forest-fox', actionSignal, onPet })
     const img = new Image()
     img.src = SPRITES[petId] || SPRITES['forest-fox']
 
-    // background stars
+    const colors = paletteColors(traits?.palette)
+
     const stars = Array.from({ length: 40 }, () => ({
       x: Math.random() * canvas.width,
       y: Math.random() * (canvas.height * 0.6),
@@ -49,22 +59,19 @@ export default function PetCanvas({ petId = 'forest-fox', actionSignal, onPet })
     }
 
     function drawBackground() {
-      // sky gradient
       const g = ctx.createLinearGradient(0, 0, 0, canvas.height)
-      g.addColorStop(0, '#0a0f0f')
-      g.addColorStop(1, '#0f1313')
+      g.addColorStop(0, colors.bgTop)
+      g.addColorStop(1, colors.bgBot)
       ctx.fillStyle = g
       ctx.fillRect(0, 0, canvas.width, canvas.height)
 
-      // stars parallax
-      ctx.fillStyle = '#0ff9'
+      ctx.fillStyle = colors.star
       for (const st of stars) {
         ctx.fillRect(st.x, st.y, st.s, st.s)
         st.x += st.v * 0.2
         if (st.x > canvas.width) st.x = -2
       }
 
-      // ground ellipse shadow
       ctx.save()
       ctx.fillStyle = 'rgba(0,0,0,0.45)'
       const gw = canvas.width * 0.35
@@ -72,6 +79,85 @@ export default function PetCanvas({ petId = 'forest-fox', actionSignal, onPet })
       ctx.beginPath()
       ctx.ellipse(canvas.width / 2, canvas.height * 0.75, gw, gh, 0, 0, Math.PI * 2)
       ctx.fill()
+      ctx.restore()
+    }
+
+    function drawAura(cx, cy, size) {
+      if (!traits?.aura || traits.aura === 'none') return
+      const grd = ctx.createRadialGradient(cx, cy, size * 0.15, cx, cy, size * 0.55)
+      const color = traits.aura === 'prismatic' ? '#a0f' : (traits.aura.includes('pink') ? '#f6a' : '#7f9')
+      grd.addColorStop(0, `${color}44`)
+      grd.addColorStop(1, '#0000')
+      ctx.save()
+      ctx.globalCompositeOperation = 'lighter'
+      ctx.fillStyle = grd
+      ctx.beginPath()
+      ctx.arc(cx, cy, size * 0.55, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.restore()
+    }
+
+    function drawMarkings(cx, cy, size) {
+      const m = traits?.markings
+      if (!m || m === 'none') return
+      ctx.save()
+      ctx.globalAlpha = 0.35
+      ctx.strokeStyle = colors.accent
+      ctx.lineWidth = 4
+      if (m === 'stripe') {
+        for (let i = -2; i <= 2; i++) {
+          ctx.beginPath()
+          ctx.moveTo(cx - size * 0.25, cy + i * 12)
+          ctx.lineTo(cx + size * 0.25, cy + i * 12)
+          ctx.stroke()
+        }
+      } else if (m === 'spots') {
+        ctx.fillStyle = colors.accent
+        for (let i = 0; i < 8; i++) {
+          const ang = (i / 8) * Math.PI * 2
+          ctx.beginPath()
+          ctx.arc(cx + Math.cos(ang) * size * 0.2, cy + Math.sin(ang) * size * 0.2, 6, 0, Math.PI * 2)
+          ctx.fill()
+        }
+      } else if (m === 'mask') {
+        ctx.fillStyle = colors.accent
+        ctx.beginPath()
+        ctx.arc(cx, cy - size * 0.12, size * 0.18, 0, Math.PI * 2)
+        ctx.fill()
+      } else if (m === 'circuit') {
+        ctx.strokeStyle = '#7fffd4'
+        for (let i = 0; i < 6; i++) {
+          ctx.beginPath()
+          ctx.moveTo(cx - size * 0.2 + i * 12, cy - size * 0.15)
+          ctx.lineTo(cx - size * 0.2 + i * 12, cy + size * 0.25)
+          ctx.stroke()
+        }
+      }
+      ctx.restore()
+    }
+
+    function drawEyes(cx, cy) {
+      const e = traits?.eyes
+      ctx.save()
+      ctx.fillStyle = '#000'
+      if (e === 'big') {
+        ctx.fillRect(cx - 20, cy - 6, 10, 10)
+        ctx.fillRect(cx + 10, cy - 6, 10, 10)
+      } else if (e === 'sleepy') {
+        ctx.fillRect(cx - 18, cy - 1, 12, 2)
+        ctx.fillRect(cx + 6, cy - 1, 12, 2)
+      } else if (e === 'visor') {
+        ctx.fillStyle = '#0ff'
+        ctx.fillRect(cx - 26, cy - 6, 52, 12)
+      } else if (e === 'glow') {
+        ctx.fillStyle = '#fff'
+        ctx.globalAlpha = 0.9
+        ctx.fillRect(cx - 16, cy - 4, 8, 8)
+        ctx.fillRect(cx + 8, cy - 4, 8, 8)
+      } else {
+        ctx.fillRect(cx - 14, cy - 3, 6, 6)
+        ctx.fillRect(cx + 8, cy - 3, 6, 6)
+      }
       ctx.restore()
     }
 
@@ -98,11 +184,19 @@ export default function PetCanvas({ petId = 'forest-fox', actionSignal, onPet })
       if (bounce > 0) bounce -= 0.02
 
       const size = Math.min(canvas.width, canvas.height) * 0.35 * (1 + b * 0.15)
+      const cx = x
+      const cy = y + (state === 'sit' ? 6 : state === 'curl' ? 10 : 0)
+
+      drawAura(cx, cy, size)
+
       ctx.save()
       ctx.imageSmoothingEnabled = false
-      ctx.translate(x, y + (state === 'sit' ? 6 : state === 'curl' ? 10 : 0))
+      ctx.translate(cx, cy)
       ctx.drawImage(img, -size / 2, -size / 2, size, size)
       ctx.restore()
+
+      drawMarkings(cx, cy, size)
+      drawEyes(cx, cy - size * 0.05)
 
       for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i]
@@ -141,7 +235,7 @@ export default function PetCanvas({ petId = 'forest-fox', actionSignal, onPet })
     raf = requestAnimationFrame(loop)
 
     return () => cancelAnimationFrame(raf)
-  }, [petId, sleeping])
+  }, [petId, sleeping, traits])
 
   useEffect(() => {
     if (!actionSignal) return
