@@ -262,7 +262,7 @@ function MainApp() {
   return (
     <div className="app-container">
       <header>
-        <h1>Solana Tamagotchi Pet</h1>
+        <h1>VirtualPetterz</h1>
         <div className="topbar">
           <Balance />
           <TokensBadge tokens={tokens} />

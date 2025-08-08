@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="160" viewBox="0 0 720 160">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#00FF99"/>
+      <stop offset="1" stop-color="#00CC77"/>
+    </linearGradient>
+    <style>
+      .box { fill: none; stroke: url(#g); stroke-width: 10; stroke-linejoin: bevel }
+      .t   { fill: #00FF99 }
+    </style>
+  </defs>
+  <!-- Icon -->
+  <rect x="20" y="20" width="120" height="120" rx="20" class="box"/>
+  <g transform="translate(0,0)" class="t">
+    <rect x="68" y="78" width="24" height="24"/>
+    <rect x="46" y="56" width="16" height="16"/>
+    <rect x="68" y="52" width="16" height="16"/>
+    <rect x="90" y="56" width="16" height="16"/>
+    <rect x="58" y="108" width="44" height="10"/>
+  </g>
+  <!-- Wordmark -->
+  <g transform="translate(170,32)" fill="#00FF99">
+    <!-- VIRTUAL -->
+    <rect x="0" y="0" width="18" height="96"/><rect x="0" y="0" width="52" height="18"/>
+    <rect x="70" y="0" width="18" height="96"/><rect x="70" y="38" width="40" height="18"/>
+    <rect x="130" y="0" width="18" height="96"/>
+    <rect x="168" y="0" width="18" height="96"/><rect x="168" y="78" width="52" height="18"/>
+    <rect x="238" y="0" width="18" height="96"/><rect x="238" y="0" width="52" height="18"/><rect x="272" y="38" width="18" height="18"/>
+    <rect x="310" y="0" width="18" height="96"/><rect x="310" y="78" width="52" height="18"/>
+    <rect x="380" y="0" width="18" height="96"/><rect x="380" y="0" width="52" height="18"/><rect x="414" y="38" width="18" height="18"/>
+    <rect x="452" y="0" width="18" height="96"/>
+  </g>
+  <g transform="translate(170,32)" fill="#00FF99">
+    <!-- PETTERZ (shifted right) -->
+    <g transform="translate(490,0)">
+      <rect x="0" y="0" width="18" height="96"/><rect x="0" y="0" width="52" height="18"/><rect x="34" y="38" width="18" height="18"/>
+      <rect x="70" y="0" width="18" height="96"/><rect x="70" y="78" width="52" height="18"/>
+      <rect x="140" y="0" width="18" height="96"/><rect x="140" y="0" width="52" height="18"/><rect x="174" y="38" width="18" height="18"/>
+      <rect x="210" y="0" width="18" height="96"/><rect x="210" y="78" width="52" height="18"/>
+      <rect x="280" y="0" width="18" height="96"/><rect x="280" y="0" width="52" height="18"/>
+      <rect x="350" y="0" width="18" height="96"/><rect x="350" y="0" width="52" height="18"/><rect x="384" y="38" width="18" height="18"/>
+      <rect x="420" y="0" width="18" height="96"/>
+    </g>
+  </g>
+</svg>
