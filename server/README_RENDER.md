@@ -24,4 +24,4 @@ Notes
 -----
 - Compression, Helmet, and logging are enabled.
 - Static assets are cached; `index.html` is no-cache for fast releases.
-- If you host the chat separately, use `server/chat.js` and set the frontend `VITE_OSS_CHAT_URL` accordingly.
+- If you host the chat separately, use `server/chat.js` and set the frontend `PUBLIC_CHAT_URL` accordingly.
