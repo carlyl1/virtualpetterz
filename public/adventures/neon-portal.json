@@ -1,0 +1,48 @@
+{
+  "startId": "root",
+  "nodes": [
+    {
+      "id": "root",
+      "text": "A neon portal hums before {pet}. The air tastes like static.",
+      "choices": [
+        { "id": "enter", "label": "Enter the portal", "nextId": "hall", "effects": { "hunger": -2, "xp": 1 } },
+        { "id": "study", "label": "Study the glow", "nextId": "spark", "effects": { "happiness": 1 } }
+      ]
+    },
+    {
+      "id": "hall",
+      "text": "You drift into a corridor of floating tiles. A sign reads: 'Left: Echo, Right: Charge'",
+      "choices": [
+        { "id": "echo", "label": "Left to Echo", "nextId": "echo", "effects": { "happiness": 2 } },
+        { "id": "charge", "label": "Right to Charge", "nextId": "charge", "effects": { "xp": 1 } }
+      ]
+    },
+    {
+      "id": "spark",
+      "text": "Sparks dance around {pet}. A tiny wisp follows you now.",
+      "choices": [
+        { "id": "proceed", "label": "Proceed inward", "nextId": "hall", "effects": { "xp": 1 } }
+      ]
+    },
+    {
+      "id": "echo",
+      "text": "Echo chamber. Your footsteps become music. {pet} feels inspired.",
+      "choices": [
+        { "id": "home", "label": "Head back home", "nextId": "end", "effects": { "tokens": 3 } },
+        { "id": "charge", "label": "Try the Charge room", "nextId": "charge", "effects": { "xp": 1 } }
+      ]
+    },
+    {
+      "id": "charge",
+      "text": "Charge room. Energy hums through the floor; {pet} gains a spark.",
+      "choices": [
+        { "id": "home", "label": "Return home", "nextId": "end", "effects": { "tokens": 5 } }
+      ]
+    },
+    {
+      "id": "end",
+      "text": "The portal spits you out gently. Adventure complete.",
+      "choices": []
+    }
+  ]
+}

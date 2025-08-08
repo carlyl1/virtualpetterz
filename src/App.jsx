@@ -324,7 +324,10 @@ function MainApp() {
           />
         )}
         {route === 'adventure' && (
-          <Adventure party={[{ name: 'You' }]} onReward={reward} onExit={() => setRoute('home')} />
+          <Adventure party={[{ name: 'You' }]} onReward={reward} onExit={() => setRoute('home')} applyStat={(stat, delta) => {
+            if (stat === 'hunger') setSelectedPet && null; // handled in HomeScreen if needed
+          }}>
+          </Adventure>
         )}
       </main>
       <footer>

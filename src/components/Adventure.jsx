@@ -10,17 +10,32 @@ function generateMockAdventure(party) {
   return seeds[Math.floor(Math.random() * seeds.length)]
 }
 
-function incQuest(id) {
+async function loadAdventurePack(path = '/adventures/neon-portal.json') {
   try {
-    const mod = require('../quests/manager')
-    mod.incrementQuest?.(id, 1)
-  } catch {}
+    const res = await fetch(path, { cache: 'no-store' })
+    if (!res.ok) throw new Error('not ok')
+    return await res.json()
+  } catch {
+    return null
+  }
 }
 
-export default function Adventure({ party = [], onExit, onReward }) {
+function applyEffects(effects, apply) {
+  if (!effects) return
+  if (typeof effects.hunger === 'number') apply('hunger', effects.hunger)
+  if (typeof effects.happiness === 'number') apply('happiness', effects.happiness)
+  if (typeof effects.tokens === 'number') apply('tokens', effects.tokens)
+  if (typeof effects.xp === 'number') apply('xp', effects.xp)
+}
+
+export default function Adventure({ party = [], onExit, onReward, applyStat }) {
   const [story, setStory] = useState('')
   const [choice, setChoice] = useState(null)
   const [cooldownSec, setCooldownSec] = useState(() => Number(localStorage.getItem('ct_adv_cooldown') || '0'))
+  const [pack, setPack] = useState(null)
+  const [nodeId, setNodeId] = useState(null)
+
+  useEffect(() => { (async () => setPack(await loadAdventurePack()))() }, [])
 
   useEffect(() => {
     if (cooldownSec <= 0) return
@@ -34,16 +49,49 @@ export default function Adventure({ party = [], onExit, onReward }) {
 
   const startMission = () => {
     if (cooldownSec > 0) return
-    setStory(generateMockAdventure(party))
-    setChoice(null)
+    if (pack) {
+      setNodeId(pack.startId)
+      setStory(resolveText(pack, pack.startId, party))
+      setChoice(null)
+    } else {
+      setStory(generateMockAdventure(party))
+      setChoice(null)
+    }
   }
 
-  const resolveChoice = (c) => {
+  const resolveText = (p, id, party) => {
+    const node = p.nodes.find(n => n.id === id)
+    if (!node) return '...'
+    const petName = (party[0] && party[0].name) || 'your pet'
+    return (node.text || '').replace('{pet}', petName)
+  }
+
+  const currentChoices = () => {
+    if (!pack || !nodeId) return null
+    const node = pack.nodes.find(n => n.id === nodeId)
+    return node?.choices || []
+  }
+
+  const pick = (c) => {
     setChoice(c)
-    incQuest('adventure')
-    const success = Math.random() > 0.5
-    if (success) onReward?.(5)
-    setCooldownSec(60)
+    if (pack && nodeId) {
+      const node = pack.nodes.find(n => n.id === nodeId)
+      const ch = (node?.choices || []).find(x => x.id === c)
+      if (ch) {
+        applyEffects(ch.effects, (stat, delta) => applyStat && applyStat(stat, delta))
+        if (ch.nextId) {
+          setNodeId(ch.nextId)
+          setStory(resolveText(pack, ch.nextId, party))
+          setChoice(null)
+          return
+        }
+      }
+      setCooldownSec(60)
+      onReward && onReward(5)
+    } else {
+      setCooldownSec(60)
+      onReward && onReward(5)
+    }
   }
 
   return (
@@ -55,14 +103,19 @@ export default function Adventure({ party = [], onExit, onReward }) {
       <div style={{ marginTop: 12 }}>
         <button disabled={cooldownSec > 0} onClick={startMission}>Generate Mission</button>
       </div>
-      <div style={{ marginTop: 12, display: 'flex', gap: 8, justifyContent: 'center' }}>
-        <button disabled={!story || cooldownSec > 0} onClick={() => resolveChoice('A')}>Choice A</button>
-        <button disabled={!story || cooldownSec > 0} onClick={() => resolveChoice('B')}>Choice B</button>
+      <div style={{ marginTop: 12, display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+        {currentChoices() ? currentChoices().map(ch => (
+          <button key={ch.id} disabled={cooldownSec > 0} onClick={() => pick(ch.id)}>{ch.label}</button>
+        )) : (
+          <>
+            <button disabled={!story || cooldownSec > 0} onClick={() => pick('A')}>Choice A</button>
+            <button disabled={!story || cooldownSec > 0} onClick={() => pick('B')}>Choice B</button>
+          </>
+        )}
       </div>
       {choice && (
         <div className="battle-result" style={{ marginTop: 10 }}>
-          Outcome decided! {`You chose ${choice}.`} {' '}
-          <span>{'('}Reward on success: +5 tokens{')'}</span>
+          Outcome decided! You chose: {choice}. (Reward on success: +5 tokens)
         </div>
       )}
       <div style={{ marginTop: 12 }}>
