@@ -26,6 +26,7 @@ import PetCanvas from './components/PetCanvas'
 import BottomDock from './components/BottomDock'
 import ThemeToggle from './components/ThemeToggle'
 import SideDock from './components/SideDock'
+import { generateTraitsFromPubkey } from './traits/generator'
 
 const AI_RESPONSE_DELAY_MS = 800
 
@@ -134,7 +135,14 @@ function HomeScreen({ selectedPet, setSelectedPet, goBattle, goAdventure, tokens
   const [showShop, setShowShop] = useState(false)
   const [actionSignal, setActionSignal] = useState(null)
 
-  useEffect(() => { if (wallet?.publicKey) { const seed = wallet.publicKey.toBase58(); const variants = ['forest-fox','mystic-bunny','robo-cat']; const idx = [...seed].reduce((a,c)=>a+c.charCodeAt(0),0)%variants.length; setSelectedPet(variants[idx]); } }, [wallet?.publicKey])
+  useEffect(() => {
+    if (wallet?.publicKey) {
+      const t = generateTraitsFromPubkey(wallet.publicKey.toBase58())
+      const speciesMap = { fox: 'forest-fox', bunny: 'mystic-bunny', cat: 'robo-cat' }
+      const mapped = speciesMap[t.species] || 'forest-fox'
+      setSelectedPet(mapped)
+    }
+  }, [wallet?.publicKey])
 
   // Passive decay
   useEffect(() => {
