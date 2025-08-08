@@ -178,6 +178,21 @@ function HomeScreen({ selectedPet, setSelectedPet, goBattle, goAdventure, tokens
   }, [])
 
   useEffect(() => {
+    const load = async () => {
+      try {
+        const pk = wallet?.publicKey?.toBase58?.()
+        if (!pk) return
+        const res = await fetch(`/.netlify/functions/pet?wallet=${encodeURIComponent(pk)}`)
+        if (!res.ok) return
+        const data = await res.json()
+        if (data?.state?.hunger != null) setHunger(Number(data.state.hunger))
+        if (data?.state?.happiness != null) setHappiness(Number(data.state.happiness))
+      } catch {}
+    }
+    load()
+  }, [wallet?.publicKey])
+
+  useEffect(() => {
     const pk = wallet?.publicKey?.toBase58?.()
     if (!pk) return
     ;(async () => {
