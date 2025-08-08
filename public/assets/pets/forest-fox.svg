@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" shape-rendering="crispEdges">
+  <!-- Ears -->
+  <rect x="3" y="2" width="2" height="2" fill="#ff9248"/>
+  <rect x="11" y="2" width="2" height="2" fill="#ff9248"/>
+  <!-- Head base -->
+  <rect x="2" y="4" width="12" height="8" fill="#ffa25e"/>
+  <!-- Cheeks (white) -->
+  <rect x="4" y="9" width="3" height="2" fill="#fff2dc"/>
+  <rect x="9" y="9" width="3" height="2" fill="#fff2dc"/>
+  <!-- Muzzle -->
+  <rect x="6" y="10" width="4" height="2" fill="#fff2dc"/>
+  <!-- Eyes -->
+  <rect x="5" y="7" width="2" height="1" fill="#2b2b2b"/>
+  <rect x="9" y="7" width="2" height="1" fill="#2b2b2b"/>
+  <!-- Nose -->
+  <rect x="7" y="11" width="2" height="1" fill="#2b2b2b"/>
+  <!-- Inner ear (darker) -->
+  <rect x="3" y="2" width="1" height="1" fill="#e67f3b"/>
+  <rect x="12" y="2" width="1" height="1" fill="#e67f3b"/>
+  <!-- Shadow along bottom -->
+  <rect x="2" y="12" width="12" height="1" fill="#e88d4a"/>
+</svg>

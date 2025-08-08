@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" shape-rendering="crispEdges">
+  <!-- Antenna -->
+  <rect x="8" y="1" width="1" height="2" fill="#49d0ff"/>
+  <rect x="8" y="0" width="1" height="1" fill="#a6f0ff"/>
+  <!-- Ears -->
+  <rect x="3" y="3" width="2" height="2" fill="#6aa3c8"/>
+  <rect x="11" y="3" width="2" height="2" fill="#6aa3c8"/>
+  <!-- Head -->
+  <rect x="2" y="5" width="12" height="7" fill="#7fb9d8"/>
+  <!-- Eyes visor -->
+  <rect x="4" y="7" width="8" height="2" fill="#0b2b3a"/>
+  <rect x="4" y="7" width="3" height="2" fill="#49d0ff"/>
+  <!-- Mouth -->
+  <rect x="7" y="11" width="2" height="1" fill="#0b2b3a"/>
+  <!-- Bottom shading -->
+  <rect x="2" y="12" width="12" height="1" fill="#6aa3c8"/>
+</svg>
