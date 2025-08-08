@@ -29,6 +29,9 @@ import SideDock from './components/SideDock'
 import { generateTraitsFromPubkey } from './traits/generator'
 import { getPet, savePet } from './api/client'
 
+// near imports
+import GroupAdventure from './components/GroupAdventure'
+
 const AI_RESPONSE_DELAY_MS = 800
 
 async function chatWithOssModel(message) {
@@ -252,6 +255,7 @@ function HomeScreen({ selectedPet, setSelectedPet, goBattle, goAdventure, tokens
         onBattle={goBattle}
         onDaily={openDaily}
         onLeaderboard={openLeaderboard}
+        onGroup={() => setRoute('group')}
       />
       <BottomDock
         onFeed={feedPet}
@@ -395,6 +399,9 @@ function MainApp() {
             }}
           >
           </Adventure>
+        )}
+        {route === 'group' && (
+          <GroupAdventure walletPubkey={walletPubkey} onExit={() => setRoute('home')} />
         )}
       </main>
       <footer>
