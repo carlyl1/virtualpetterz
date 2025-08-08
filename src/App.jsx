@@ -27,6 +27,7 @@ import BottomDock from './components/BottomDock'
 import ThemeToggle from './components/ThemeToggle'
 import SideDock from './components/SideDock'
 import { generateTraitsFromPubkey } from './traits/generator'
+import { getPet, savePet } from './api/client'
 
 const AI_RESPONSE_DELAY_MS = 800
 
@@ -157,6 +158,22 @@ function HomeScreen({ selectedPet, setSelectedPet, goBattle, goAdventure, tokens
     setMood(moodLabel(hunger, happiness))
   }, [hunger, happiness])
 
+  // in HomeScreen, apply pending deltas from adventure
+  useEffect(() => {
+    const kh = 'ct_adv_hunger_delta'
+    const kx = 'ct_adv_happiness_delta'
+    const dh = Number(localStorage.getItem(kh) || '0')
+    const dx = Number(localStorage.getItem(kx) || '0')
+    if (dh !== 0) {
+      setHunger((v) => Math.max(0, Math.min(100, v + dh)))
+      localStorage.removeItem(kh)
+    }
+    if (dx !== 0) {
+      setHappiness((v) => Math.max(0, Math.min(100, v + dx)))
+      localStorage.removeItem(kx)
+    }
+  }, [])
+
   const floatPlus = (text) => {
     const el = document.createElement('div')
     el.className = 'float-plus'
@@ -264,6 +281,42 @@ function MainApp() {
   const [showLB, setShowLB] = useState(false)
   const [showQuests, setShowQuests] = useState(false)
 
+  // persist per-wallet pet state
+  const [walletPubkey, setWalletPubkey] = useState(null)
+  useEffect(() => {
+    // capture wallet pubkey via custom event from HomeScreen (or directly via window)
+    try {
+      const { solana } = window
+      // no-op if unavailable
+    } catch {}
+  }, [])
+
+  // load on wallet connect
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      try {
+        const pk = window?.solana?.publicKey?.toString?.() || null
+        setWalletPubkey(pk || null)
+        if (!pk) return
+        const data = await getPet(pk)
+        if (cancelled) return
+        if (data?.state?.tokens != null) setTokens(Number(data.state.tokens))
+      } catch {}
+    }
+    load()
+    return () => { cancelled = true }
+  }, [])
+
+  // save when tokens change and wallet is present
+  useEffect(() => {
+    const pk = walletPubkey
+    if (!pk) return
+    ;(async () => {
+      try { await savePet(pk, { state: { tokens } }) } catch {}
+    })()
+  }, [tokens, walletPubkey])
+
   useEffect(() => { localStorage.setItem('ct_selected_pet', selectedPet) }, [selectedPet])
   useEffect(() => {
     localStorage.setItem('ct_tokens', String(tokens))
@@ -324,9 +377,23 @@ function MainApp() {
           />
         )}
         {route === 'adventure' && (
-          <Adventure party={[{ name: 'You' }]} onReward={reward} onExit={() => setRoute('home')} applyStat={(stat, delta) => {
-            if (stat === 'hunger') setSelectedPet && null; // handled in HomeScreen if needed
-          }}>
+          <Adventure
+            party={[{ name: 'You' }]}
+            onReward={reward}
+            onExit={() => setRoute('home')}
+            applyStat={(stat, delta) => {
+              if (stat === 'tokens') setTokens((t) => Math.max(0, t + Number(delta || 0)))
+              if (stat === 'hunger') {
+                // Bubble update via localStorage; HomeScreen reads from its own state
+                const key = 'ct_adv_hunger_delta'
+                localStorage.setItem(key, String(Number(localStorage.getItem(key) || '0') + Number(delta || 0)))
+              }
+              if (stat === 'happiness') {
+                const key = 'ct_adv_happiness_delta'
+                localStorage.setItem(key, String(Number(localStorage.getItem(key) || '0') + Number(delta || 0)))
+              }
+            }}
+          >
           </Adventure>
         )}
       </main>
