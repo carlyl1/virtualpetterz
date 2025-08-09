@@ -36,6 +36,7 @@ import { getPet, savePet } from './api/client'
 import GroupAdventure from './components/GroupAdventure'
 import WalletHelp from './components/WalletHelp'
 import HatchIntro from './components/HatchIntro'
+import NamePet from './components/NamePet'
 
 const AI_RESPONSE_DELAY_MS = 800
 
@@ -131,7 +132,7 @@ function PetActions({ onFeed, onPlay, mood }) {
   )
 }
 
-function HomeScreen({ selectedPet, setSelectedPet, goBattle, goAdventure, tokens, setTokens, openDaily, openLeaderboard, openQuests }) {
+function HomeScreen({ selectedPet, setSelectedPet, goBattle, goAdventure, tokens, setTokens, openDaily, openLeaderboard, openQuests, petName }) {
   const containerRef = useRef(null)
   const wallet = useWallet()
 
@@ -192,6 +193,7 @@ function HomeScreen({ selectedPet, setSelectedPet, goBattle, goAdventure, tokens
         const data = await res.json()
         if (data?.state?.hunger != null) setHunger(Number(data.state.hunger))
         if (data?.state?.happiness != null) setHappiness(Number(data.state.happiness))
+        if (data?.state?.name) setPetName(String(data.state.name))
       } catch {}
     }
     load()
@@ -272,6 +274,7 @@ function HomeScreen({ selectedPet, setSelectedPet, goBattle, goAdventure, tokens
           } catch { return null }
         })()} onPet={() => setHappiness((v)=>Math.min(100,v+5))} actionSignal={actionSignal} />
       </div>
+      {petName && <div className="mood-display">Name: {petName}</div>}
       <div className="stats">
         <StatBar label="Hunger" value={hunger} />
         <StatBar label="Happiness" value={happiness} />
@@ -318,6 +321,7 @@ function MainApp() {
   const [showLB, setShowLB] = useState(false)
   const [showQuests, setShowQuests] = useState(false)
   const [showHatch, setShowHatch] = useState(() => !localStorage.getItem('ct_hatched'))
+  const [petName, setPetName] = useState('')
 
   // persist per-wallet pet state
   const [walletPubkey, setWalletPubkey] = useState(null)
@@ -340,6 +344,7 @@ function MainApp() {
         const data = await getPet(pk)
         if (cancelled) return
         if (data?.state?.tokens != null) setTokens(Number(data.state.tokens))
+        if (data?.state?.name) setPetName(String(data.state.name))
       } catch {}
     }
     load()
@@ -368,6 +373,8 @@ function MainApp() {
     } catch {}
   }, [tokens])
 
+  useEffect(() => { if (!petName) { const n = localStorage.getItem('ct_pet_name'); if (n) setPetName(n) } }, [])
+
   const reward = (amount) => setTokens((t) => t + amount)
 
   const playerPet = { stats: { hp: 100, attack: 20, defense: 10, speed: 15 }, name: 'Pet' }
@@ -376,8 +383,9 @@ function MainApp() {
   return (
     <div className="app-container">
       {showHatch && (
-        <HatchIntro onDone={() => { localStorage.setItem('ct_hatched', '1'); setShowHatch(false) }} />
+        <HatchIntro onDone={() => { localStorage.setItem('ct_hatched', '1'); setShowHatch(false); setTimeout(() => setShowName(true), 50) }} />
       )}
+      {showName && <NamePet wallet={walletPubkey} onDone={(n) => { setPetName(n); setShowName(false) }} />}
       <header>
         <h1>VirtualPetterz</h1>
         <div className="topbar">
@@ -407,6 +415,7 @@ function MainApp() {
               openDaily={() => setShowDaily(true)}
               openLeaderboard={() => setShowLB(true)}
               openQuests={() => setShowQuests(true)}
+              petName={petName}
             /></div></div>
           </>
         )}
