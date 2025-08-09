@@ -14,7 +14,14 @@ body[data-theme='pastel'] {
 }
 
 html, body, #root { height: 100%; }
-body { min-height: 100vh; }
+body {
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: 'Press Start 2P', cursive, monospace;
+}
 
 /* Full-bleed layout */
 .app-container {
@@ -44,7 +51,7 @@ header h1 { margin: 0; font-size: clamp(1.1rem, 2.4vw, 1.6rem); color: var(--acc
 /* Main grid: left gutter, center stage, right gutter */
 .main-grid {
   display: grid;
-  grid-template-columns: 1fr min(70vw, 860px) 1fr;
+  grid-template-columns: 1fr min(60vw, 860px) 1fr;
   grid-template-rows: 1fr;
   align-items: start;
 }
@@ -144,6 +151,7 @@ button:hover { background: var(--accent-2); box-shadow: 0 0 10px var(--accent); 
   border-radius: 6px;
   font-weight: bold;
   box-shadow: 0 0 8px var(--accent-2);
+  font-family: inherit;
 }
 .side-dock button { padding: 10px 12px; }
 
