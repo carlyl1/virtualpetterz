@@ -1,4 +1,5 @@
 // Deterministic trait generator for VirtualPetterz
+import { generatePet } from '../generators/petGenerator'
 
 function hashString(str) {
   let h = 2166136261 >>> 0
@@ -27,6 +28,11 @@ function pickWeighted(r, table) {
     x -= t.w
   }
   return table[table.length - 1].key
+}
+
+// Enhanced version using the advanced pet generator
+export function generateEnhancedTraitsFromPubkey(pubkey) {
+  return generatePet(pubkey)
 }
 
 export function generateTraitsFromPubkey(pubkey) {

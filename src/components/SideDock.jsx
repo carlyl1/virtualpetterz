@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 
-export default function SideDock({ onFeed, onPlay, onShop, onQuests, onAdventure, onBattle, onDaily, onLeaderboard, onGroup }) {
+export default function SideDock({ onFeed, onPlay, onShop, onQuests, onAdventure, onBattle, onDaily, onLeaderboard, onGroup, onCYOA, onGarden, onStats, onWallet }) {
   const [open, setOpen] = useState(true)
   return (
     <div className={`side-dock ${open ? 'open' : ''}`}>
@@ -14,6 +14,10 @@ export default function SideDock({ onFeed, onPlay, onShop, onQuests, onAdventure
           <button onClick={onAdventure}>Adventure</button>
           <button onClick={onBattle}>Battle</button>
           <button onClick={onGroup}>Group Adventure</button>
+          <button onClick={onCYOA}>Story Quest</button>
+          <button onClick={onGarden}>Pet Garden</button>
+          <button onClick={onStats}>Stats & Progress</button>
+          <button onClick={onWallet}>Token Wallet</button>
           <button onClick={onDaily}>Daily</button>
           <button onClick={onLeaderboard}>Leaderboard</button>
           <a href="/about">About</a>

@@ -1,13 +1,18 @@
 import React, { useEffect, useState } from 'react'
+import { generateAdventure } from '../generators/adventureGenerator'
 
-function generateMockAdventure(party) {
-  const names = party.map((p) => p.name).join(', ')
-  const seeds = [
-    `In the pixel forest, ${names} find a glowing shard. Do they grasp it or leave it be?`,
-    `${names} enter a neon cave where echoes speak. Do they follow the voice or mark a retreat?`,
-    `${names} meet a robo-merchant offering a mystery chip. Trade tokens or haggle?`,
-  ]
-  return seeds[Math.floor(Math.random() * seeds.length)]
+function generateRichAdventure(party) {
+  console.log('🎯 Generating rich adventure for party:', party);
+  const adventure = generateAdventure();
+  
+  // Add party member names to the adventure
+  if (party && party.length > 0) {
+    const petName = party[0].name || 'your pet';
+    const storyWithPet = adventure.story.replace(/your pet/gi, petName);
+    return storyWithPet;
+  }
+  
+  return adventure.story;
 }
 
 async function loadAdventurePack(path = '/adventures/neon-portal.json') {
@@ -54,7 +59,7 @@ export default function Adventure({ party = [], onExit, onReward, applyStat }) {
       setStory(resolveText(pack, pack.startId, party))
       setChoice(null)
     } else {
-      setStory(generateMockAdventure(party))
+      setStory(generateRichAdventure(party))
       setChoice(null)
     }
   }

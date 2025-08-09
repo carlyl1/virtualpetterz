@@ -175,7 +175,7 @@ export default function PetCanvas({ petId = 'forest-fox', actionSignal, onPet, t
     function drawAura(cx, cy, size) {
       if (!traits?.aura || traits.aura === 'none') return
       const grd = ctx.createRadialGradient(cx, cy, size * 0.15, cx, cy, size * 0.55)
-      const color = traits.aura === 'prismatic' ? '#a0f' : (traits.aura.includes('pink') ? '#f6a' : '#7f9')
+      const color = traits.aura === 'prismatic' ? '#aa0ff' : (traits.aura.includes('pink') ? '#ff66aa' : '#77ff99')
       grd.addColorStop(0, `${color}44`)
       grd.addColorStop(1, '#0000')
       ctx.save()

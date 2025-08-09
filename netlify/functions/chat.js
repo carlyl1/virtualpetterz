@@ -72,7 +72,17 @@ exports.handler = async (event) => {
           const data = await res.json()
           debugInfo.attempts[debugInfo.attempts.length - 1].responseType = typeof data
           debugInfo.attempts[debugInfo.attempts.length - 1].responseKeys = Object.keys(data || {})
-          output = Array.isArray(data) ? (data[0]?.generated_text || null) : (data?.generated_text || null)
+          debugInfo.attempts[debugInfo.attempts.length - 1].responseData = data
+          // Handle different response formats from different models
+          if (Array.isArray(data)) {
+            output = data[0]?.generated_text || data[0]?.text || null
+          } else if (data?.generated_text) {
+            output = data.generated_text
+          } else if (data?.text) {
+            output = data.text
+          } else if (data?.conversation?.generated_responses?.[0]) {
+            output = data.conversation.generated_responses[0]
+          }
         } else {
           const errorText = await res.text().catch(() => '')
           lastError = { status: res.status, text: errorText }
@@ -99,7 +109,17 @@ exports.handler = async (event) => {
             const data = await res.json()
             debugInfo.attempts[debugInfo.attempts.length - 1].responseType = typeof data
             debugInfo.attempts[debugInfo.attempts.length - 1].responseKeys = Object.keys(data || {})
-            output = Array.isArray(data) ? (data[0]?.generated_text || null) : (data?.generated_text || null)
+            debugInfo.attempts[debugInfo.attempts.length - 1].responseData = data
+            // Handle different response formats from different models
+            if (Array.isArray(data)) {
+              output = data[0]?.generated_text || data[0]?.text || null
+            } else if (data?.generated_text) {
+              output = data.generated_text
+            } else if (data?.text) {
+              output = data.text
+            } else if (data?.conversation?.generated_responses?.[0]) {
+              output = data.conversation.generated_responses[0]
+            }
           } else {
             const errorText = await res.text().catch(() => '')
             lastError = { status: res.status, text: errorText }

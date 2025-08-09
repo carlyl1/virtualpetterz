@@ -229,7 +229,7 @@ export default function HatchReveal({ petData, onDone }) {
                     fontWeight: 'bold',
                     textTransform: 'capitalize',
                     color: elementColors[element] || '#fff',
-                    textShadow: `0 0 8px ${elementColors[element] || '#fff'}44`
+                    textShadow: `0 0 8px ${elementColors[element] || '#ffffff'}44`
                   }}>
                     {element}
                   </div>

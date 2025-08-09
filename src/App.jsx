@@ -15,6 +15,7 @@ import { useWallet } from '@solana/wallet-adapter-react'
 
 import './App.css'
 import Battle from './components/Battle'
+import P2PBattleRoom from './components/P2PBattleRoom'
 import Adventure from './components/Adventure'
 import PetSelect from './components/PetSelect'
 import Balance from './components/Balance'
@@ -25,70 +26,71 @@ import Leaderboard from './components/Leaderboard'
 import AudioPlayer from './components/AudioPlayer'
 import Quests from './components/Quests'
 import { incrementQuest } from './quests/manager'
-import PetCanvas from './components/PetCanvas'
+import PetWorld from './components/PetWorld'
 import BottomDock from './components/BottomDock'
 import ThemeToggle from './components/ThemeToggle'
 import SideDock from './components/SideDock'
 import { generateTraitsFromPubkey } from './traits/generator'
 import { getPet, savePet } from './api/client'
+import { enhanceApiPrompt, getPersonalityFallback } from './chat/petPersonality'
 
 // near imports
-import GroupAdventure from './components/GroupAdventure'
+import SimpleGroupAdventure from './components/SimpleGroupAdventure'
+import CYOAAdventure from './components/CYOAAdventure'
 import WalletHelp from './components/WalletHelp'
 import HatchIntro from './components/HatchIntro'
 import HatchReveal from './components/HatchReveal'
 import NamePet from './components/NamePet'
+import PetGarden from './components/PetGarden'
+import StatsBoard from './components/StatsBoard'
+import TokenWallet from './components/TokenWallet'
 import ErrorBoundary, { PetCanvasErrorFallback, ChatErrorFallback } from './components/ErrorBoundary'
+import ImprovedErrorBoundary from './components/ImprovedErrorBoundary'
+import MultiplayerStatus from './components/MultiplayerStatus'
 import LoadingSpinner, { ChatLoadingIndicator } from './components/LoadingSpinner'
+import progressionSystem from './systems/PersistentProgression'
+import unifiedProgression from './systems/UnifiedProgression'
+import AdventurePanel from './components/AdventurePanel'
+import LevelUpNotification from './components/LevelUpNotification'
+import multiplayerService from './services/MultiplayerService'
+import ChatSidebar from './components/ChatSidebar'
 
 const AI_RESPONSE_DELAY_MS = 800
 
 async function chatWithOssModel(message) {
-  const url = import.meta.env.PUBLIC_CHAT_URL || '/.netlify/functions/chat'
-  // Add debug parameter to enable detailed logging
-  const debugUrl = `${url}?debug=1`
-  const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), 15000) // 15 second timeout
-  
+  // Try server-side chat endpoint first (for production)
   try {
-    console.log('Making chat request to:', debugUrl, 'with message:', message)
+    const serverUrl = window.location.origin + '/chat';
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
     
-    const res = await fetch(debugUrl, {
+    console.log('🤖 Trying server chat:', serverUrl);
+    
+    const res = await fetch(serverUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ input: message }),
       signal: controller.signal
-    })
+    });
     
-    clearTimeout(timeoutId)
+    clearTimeout(timeoutId);
     
-    console.log('Chat response status:', res.status, res.statusText)
-    
-    if (!res.ok) {
-      const errorText = await res.text().catch(() => 'Unknown error')
-      console.warn('Chat API error:', res.status, res.statusText, errorText)
-      return null
+    if (res.ok) {
+      const data = await res.json();
+      console.log('✅ Server chat response:', data);
+      
+      if (data.output && data.output.trim() && 
+          !data.output.includes('simple pet') && 
+          data.output.length > 5) {
+        return data.output;
+      }
     }
-    
-    const data = await res.json()
-    console.log('Chat response data:', data)
-    
-    // Log debug information if available
-    if (data.debug) {
-      console.log('HuggingFace Debug Info:', data.debug)
-    }
-    
-    return data?.output || data?.text || null
   } catch (error) {
-    clearTimeout(timeoutId)
-    
-    if (error.name === 'AbortError') {
-      console.warn('Chat request timed out')
-    } else {
-      console.error('Chat error:', error.message, error)
-    }
-    return null
+    console.log('⚠️ Server chat failed, using fallback:', error.message);
   }
+  
+  // Always return null to trigger personality fallback
+  return null;
 }
 
 function mockGptOssResponse(input) {
@@ -181,12 +183,12 @@ function PetActions({ onFeed, onPlay, mood }) {
   )
 }
 
-function HomeScreen({ selectedPet, setSelectedPet, goBattle, goAdventure, tokens, setTokens, openDaily, openLeaderboard, openQuests, petName }) {
+function HomeScreen({ selectedPet, setSelectedPet, goBattle, goAdventure, tokens, setTokens, openDaily, openLeaderboard, openQuests, petName, gameData, refreshGameData }) {
   const containerRef = useRef(null)
   const wallet = useWallet()
 
-  const [hunger, setHunger] = useState(65)
-  const [happiness, setHappiness] = useState(65)
+  const [hunger, setHunger] = useState(gameData.petStats.hunger)
+  const [happiness, setHappiness] = useState(gameData.petStats.happiness)
   const [mood, setMood] = useState('happy 😊')
   const [isFeeding, setIsFeeding] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -196,13 +198,56 @@ function HomeScreen({ selectedPet, setSelectedPet, goBattle, goAdventure, tokens
   const [isLoadingPetData, setIsLoadingPetData] = useState(false)
 
   useEffect(() => {
-    if (wallet?.publicKey) {
+    // Only auto-generate pet if wallet connects and no saved pet exists
+    if (wallet?.publicKey && !localStorage.getItem('ct_selected_pet')) {
       const t = generateTraitsFromPubkey(wallet.publicKey.toBase58())
-      const speciesMap = { fox: 'forest-fox', bunny: 'mystic-bunny', cat: 'robo-cat' }
+      const speciesMap = { 
+        fox: 'forest-fox', 
+        bunny: 'mystic-bunny', 
+        cat: 'robo-cat',
+        duck: 'water-duck',
+        wolf: 'shadow-wolf',
+        sloth: 'pixel-sloth',
+        hamster: 'chonk-hamster',
+        moth: 'glitch-moth'
+      }
       const mapped = speciesMap[t.species] || 'forest-fox'
       setSelectedPet(mapped)
+      
+      // Register pet with progression system
+      const petSeed = `wallet-${mapped}`
+      const petData = {
+        seed: petSeed,
+        species: mapped,
+        rarity: t.rarity || 'common',
+        stats: { hp: 80, attack: 15, defense: 10, speed: 12 }
+      }
+      progressionSystem.registerPet(petData)
     }
   }, [wallet?.publicKey])
+
+  // Register existing pets with progression system
+  useEffect(() => {
+    if (selectedPet) {
+      const t = (() => {
+        try {
+          const pk = wallet?.publicKey?.toBase58?.()
+          return generateTraitsFromPubkey(pk || 'guest')
+        } catch { 
+          return { rarity: 'common' } 
+        }
+      })()
+      
+      const petSeed = wallet?.publicKey ? `wallet-${selectedPet}` : `guest-${selectedPet}`
+      const petData = {
+        seed: petSeed,
+        species: selectedPet,
+        rarity: t.rarity || 'common',
+        stats: { hp: 80, attack: 15, defense: 10, speed: 12 }
+      }
+      progressionSystem.registerPet(petData)
+    }
+  }, [selectedPet, wallet?.publicKey])
 
   // Passive decay
   useEffect(() => {
@@ -280,7 +325,9 @@ function HomeScreen({ selectedPet, setSelectedPet, goBattle, goAdventure, tokens
   const feedPet = () => {
     setIsFeeding(true)
     setTimeout(() => {
-      setHunger((prev) => Math.min(100, prev + 25))
+      unifiedProgression.feedPet({ hunger: 25, happiness: 5 })
+      const newData = refreshGameData()
+      setHunger(newData.petStats.hunger)
       setIsFeeding(false)
       floatPlus('+ Hunger')
       incrementQuest('feed_pet', 1)
@@ -291,7 +338,10 @@ function HomeScreen({ selectedPet, setSelectedPet, goBattle, goAdventure, tokens
   const playWithPet = () => {
     setIsPlaying(true)
     setTimeout(() => {
-      setHappiness((prev) => Math.min(100, prev + 25))
+      unifiedProgression.playWithPet({ happiness: 25, hunger: -3 })
+      const newData = refreshGameData()
+      setHappiness(newData.petStats.happiness)
+      setHunger(newData.petStats.hunger)
       setIsPlaying(false)
       floatPlus('+ Happiness')
       incrementQuest('play_pet', 1)
@@ -300,19 +350,20 @@ function HomeScreen({ selectedPet, setSelectedPet, goBattle, goAdventure, tokens
   }
 
   const handleUseItem = (id) => {
-    if (id === 'food') setHunger((v) => Math.min(100, v + 20))
-    if (id === 'toy') setHappiness((v) => Math.min(100, v + 20))
+    if (id === 'food') {
+      unifiedProgression.feedPet({ hunger: 20, happiness: 3 })
+      const newData = refreshGameData()
+      setHunger(newData.petStats.hunger)
+    }
+    if (id === 'toy') {
+      unifiedProgression.playWithPet({ happiness: 20, hunger: -1 })
+      const newData = refreshGameData()
+      setHappiness(newData.petStats.happiness)
+      setHunger(newData.petStats.hunger)
+    }
     floatPlus(id === 'food' ? '+ Food' : '+ Fun')
   }
 
-  const handleChatSend = async (input, callback) => {
-    const apiResponse = await chatWithOssModel(input)
-    if (apiResponse) {
-      callback(apiResponse)
-      return
-    }
-    setTimeout(() => callback(mockGptOssResponse(input)), AI_RESPONSE_DELAY_MS)
-  }
 
   return (
     <div ref={containerRef}>
@@ -324,17 +375,25 @@ function HomeScreen({ selectedPet, setSelectedPet, goBattle, goAdventure, tokens
           }}
         />
       )}
-      {showShop && <Shop onClose={() => setShowShop(false)} onUseItem={handleUseItem} />}
-      <div className="scene">
-        <ErrorBoundary fallback={PetCanvasErrorFallback}>
-          <PetCanvas petId={selectedPet} traits={(() => {
+      {showShop && <Shop onClose={() => setShowShop(false)} onUseItem={handleUseItem} refreshGameData={refreshGameData} />}
+      {/* Pet World - full screen background */}
+      <ErrorBoundary fallback={PetCanvasErrorFallback}>
+        <PetWorld
+          petId={selectedPet}
+          traits={(() => {
             try {
               const pk = wallet?.publicKey?.toBase58?.()
               return generateTraitsFromPubkey(pk || 'guest')
             } catch { return null }
-          })()} onPet={() => setHappiness((v)=>Math.min(100,v+5))} actionSignal={actionSignal} />
-        </ErrorBoundary>
-      </div>
+          })()}
+          onPet={() => setHappiness((v)=>Math.min(100,v+5))}
+          actionSignal={actionSignal}
+          happiness={happiness}
+          hunger={hunger}
+          sleeping={false}
+          petName={petName}
+        />
+      </ErrorBoundary>
       {petName && <div className="mood-display">Name: {petName}</div>}
       <div className="stats">
         {isLoadingPetData ? (
@@ -351,35 +410,34 @@ function HomeScreen({ selectedPet, setSelectedPet, goBattle, goAdventure, tokens
       </div>
       <PetActions onFeed={feedPet} onPlay={playWithPet} mood={mood} />
       {(isFeeding || isPlaying) && <div className="loading">Processing...</div>}
-      <ErrorBoundary fallback={ChatErrorFallback}>
-        <ChatBox onSend={handleChatSend} />
-      </ErrorBoundary>
-      <SideDock
-        onFeed={feedPet}
-        onPlay={playWithPet}
-        onShop={() => setShowShop(true)}
-        onQuests={openQuests}
-        onAdventure={goAdventure}
-        onBattle={goBattle}
-        onDaily={openDaily}
-        onLeaderboard={openLeaderboard}
-        onGroup={() => setRoute('group')}
-      />
-      <BottomDock
-        onFeed={feedPet}
-        onPlay={playWithPet}
-        onShop={() => setShowShop(true)}
-        onQuests={openQuests}
-        onAdventure={goAdventure}
-        onBattle={goBattle}
-        onDaily={openDaily}
-        onLeaderboard={openLeaderboard}
-      />
+      
+      {/* Pet Selection - Hidden for now since it shows blobs */}
+      {false && (
+        <div style={{ textAlign: 'center', marginTop: '12px' }}>
+          <button 
+            onClick={() => setShowSelector(true)}
+            style={{
+              padding: '8px 16px',
+              fontSize: '11px',
+              background: 'rgba(0, 255, 153, 0.8)',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              fontWeight: 'bold',
+              transition: 'all 0.2s ease',
+              opacity: 0.8
+            }}
+          >
+            Choose Pet 🔄
+          </button>
+        </div>
+      )}
       <footer>
         <small>
           <a href="/about">About</a> · <a href="/roadmap">Roadmap</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a>
         </small>
-        <small>Token spends are simulated. Real integration coming soon!</small>
+        <small>In-game progress is saved locally and may be lost on browser data clear.</small>
       </footer>
     </div>
   )
@@ -387,8 +445,78 @@ function HomeScreen({ selectedPet, setSelectedPet, goBattle, goAdventure, tokens
 
 function MainApp() {
   const [route, setRoute] = useState('home')
-  const [selectedPet, setSelectedPet] = useState(() => localStorage.getItem('ct_selected_pet') || 'forest-fox')
-  const [tokens, setTokens] = useState(() => Number(localStorage.getItem('ct_tokens') || '25'))
+  const [selectedPet, setSelectedPet] = useState(() => {
+    // If there's a saved pet, use it. Otherwise randomize initial selection
+    const saved = localStorage.getItem('ct_selected_pet')
+    if (saved) return saved
+    
+    const pets = ['forest-fox', 'mystic-bunny', 'robo-cat', 'water-duck', 'shadow-wolf', 'pixel-sloth', 'chonk-hamster', 'glitch-moth']
+    return pets[Math.floor(Math.random() * pets.length)]
+  })
+  // Use unified progression system
+  const [gameData, setGameData] = useState(() => unifiedProgression.getAllData())
+  const [tokens, setTokens] = useState(gameData.playerStats.tokens)
+  
+  // Helper function to refresh game data
+  const refreshGameData = () => {
+    const newData = unifiedProgression.getAllData()
+    setGameData(newData)
+    setTokens(newData.playerStats.tokens)
+    return newData
+  }
+  
+  // Wrapper functions for unified system
+  const giveTokens = (amount) => {
+    unifiedProgression.addTokens(amount)
+    refreshGameData()
+  }
+  
+  const updatePetStats = (updates) => {
+    if (updates.experience) {
+      const result = unifiedProgression.addExperience(updates.experience)
+      if (result.leveledUp) {
+        setLevelUpData(result)
+      }
+    }
+    if (updates.hunger !== undefined || updates.happiness !== undefined) {
+      unifiedProgression.updatePetNeeds(
+        updates.hunger !== undefined ? updates.hunger : gameData.petStats.hunger,
+        updates.happiness !== undefined ? updates.happiness : gameData.petStats.happiness
+      )
+    }
+    refreshGameData()
+  }
+  
+  const recordBattleResult = (won, tokensEarned, expEarned) => {
+    unifiedProgression.recordBattleResult(won, tokensEarned, expEarned)
+    refreshGameData()
+  }
+  
+  // Check daily login on app start and initialize multiplayer
+  useEffect(() => {
+    const dailyResult = unifiedProgression.checkDailyLogin()
+    if (dailyResult.isNewDay) {
+      // Could show a daily reward notification here
+      console.log('Daily login bonus:', dailyResult)
+      refreshGameData()
+    }
+    
+    // Initialize multiplayer service
+    multiplayerService.connect().then(() => {
+      if (multiplayerService.isConnected()) {
+        console.log('🌐 Multiplayer enabled');
+        // Register player with current data
+        multiplayerService.registerPlayer({
+          name: petName || 'Anonymous',
+          petSpecies: selectedPet || 'forest-fox',
+          stats: gameData.battleStats,
+          level: gameData.petStats.level
+        });
+      } else {
+        console.log('⚠️ Playing in offline mode');
+      }
+    });
+  }, [])
   const [showDaily, setShowDaily] = useState(false)
   const [showLB, setShowLB] = useState(false)
   const [showQuests, setShowQuests] = useState(false)
@@ -396,6 +524,8 @@ function MainApp() {
   const [showReveal, setShowReveal] = useState(false)
   const [showName, setShowName] = useState(false)
   const [petName, setPetName] = useState('')
+  const [levelUpData, setLevelUpData] = useState(null)
+  const [isChatCollapsed, setIsChatCollapsed] = useState(true)
 
   // persist per-wallet pet state
   const [walletPubkey, setWalletPubkey] = useState(null)
@@ -451,8 +581,11 @@ function MainApp() {
 
   const reward = (amount) => setTokens((t) => t + amount)
 
-  const playerPet = { stats: { hp: 100, attack: 20, defense: 10, speed: 15 }, name: 'Pet' }
-  const opponentPet = { stats: { hp: 90, attack: 18, defense: 12 }, name: 'Shadow Wolf' }
+  const playerPet = { stats: { hp: 100, attack: 20, defense: 10, speed: 15 }, name: petName || 'Pet' }
+  const [opponentPet, setOpponentPet] = useState({ 
+    name: 'Shadow Wolf',
+    stats: { hp: 90, attack: 18, defense: 12 }
+  })
 
   return (
     <div className="app-container">
@@ -481,7 +614,24 @@ function MainApp() {
       )}
       {showName && <NamePet wallet={walletPubkey} onDone={(n) => { setPetName(n); setShowName(false) }} />}
       <header>
-        <h1>VirtualPetterz</h1>
+        <h1 
+          onClick={() => setRoute('home')}
+          style={{ 
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            userSelect: 'none'
+          }}
+          onMouseEnter={(e) => {
+            e.target.style.transform = 'scale(1.05)'
+            e.target.style.textShadow = '0 0 10px rgba(0, 255, 153, 0.5)'
+          }}
+          onMouseLeave={(e) => {
+            e.target.style.transform = 'scale(1)'
+            e.target.style.textShadow = 'none'
+          }}
+        >
+          VirtualPetterz
+        </h1>
         <div className="topbar">
           <Balance />
           <TokensBadge tokens={tokens} />
@@ -494,65 +644,343 @@ function MainApp() {
       </header>
       <main>
         {route === 'home' && (
-          <>
+          <ImprovedErrorBoundary>
             {showDaily && <DailyCheckin onClaim={reward} onClose={() => setShowDaily(false)} />}
-            {showLB && <Leaderboard onClose={() => setShowLB(false)} />}
+            {showLB && <Leaderboard 
+              onClose={() => setShowLB(false)}
+              playerData={{
+                name: petName || 'You',
+                wins: gameData.playerStats.battlesWon,
+                tokens: gameData.playerStats.tokens,
+                battles: gameData.playerStats.battlesWon + gameData.playerStats.battlesLost,
+                petSpecies: selectedPet ? selectedPet.replace('-', ' ') : 'Pet'
+              }}
+            />}
             {showQuests && <Quests onReward={reward} onClose={() => setShowQuests(false)} />}
-            <div className="main-grid"><div className="center">
-              <HomeScreen
-                selectedPet={selectedPet}
-                setSelectedPet={setSelectedPet}
-                tokens={tokens}
-                setTokens={setTokens}
-                goBattle={() => setRoute('battle')}
-                goAdventure={() => setRoute('adventure')}
-                openDaily={() => setShowDaily(true)}
-                openLeaderboard={() => setShowLB(true)}
-                openQuests={() => setShowQuests(true)}
-                petName={petName}
-              />
-              <WalletHelp connected={!!walletPubkey} />
-            </div></div>
-          </>
+            <div className="main-grid">
+              {/* Left sidebar - Navigation only (no background panel) */}
+              <div style={{ position: 'relative', zIndex: 1 }}></div>
+              
+              {/* Center content */}
+              <div className="center">
+                <HomeScreen
+                  selectedPet={selectedPet}
+                  setSelectedPet={setSelectedPet}
+                  tokens={tokens}
+                  setTokens={setTokens}
+                  goBattle={() => setRoute('battle')}
+                  goAdventure={() => setRoute('adventure')}
+                  openDaily={() => setShowDaily(true)}
+                  openLeaderboard={() => setShowLB(true)}
+                  openQuests={() => setShowQuests(true)}
+                  petName={petName}
+                  gameData={gameData}
+                  refreshGameData={refreshGameData}
+                />
+              </div>
+              
+              {/* Right sidebar - Wallet info */}
+              <div style={{ 
+                position: 'relative', 
+                zIndex: 100,
+                background: 'rgba(0, 0, 0, 0.8)',
+                borderRadius: '12px',
+                padding: '16px',
+                border: '1px solid rgba(0, 255, 153, 0.3)'
+              }}>
+                <WalletHelp connected={!!walletPubkey} />
+              </div>
+            </div>
+          </ImprovedErrorBoundary>
         )}
         {route === 'battle' && (
           <ErrorBoundary>
+            <div style={{ padding: '2rem', textAlign: 'center' }}>
+              <h2 style={{ color: '#00ff99', marginBottom: '2rem' }}>⚔️ Battle Arena</h2>
+              <div style={{ display: 'flex', gap: '2rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                <button 
+                  className="btn btn-primary" 
+                  style={{ padding: '1rem 2rem', fontSize: '1.1rem' }}
+                  onClick={() => setRoute('p2p-battle')}
+                >
+                  🌐 P2P Battle
+                  <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>Fight real players</div>
+                </button>
+                <button 
+                  className="btn btn-secondary" 
+                  style={{ padding: '1rem 2rem', fontSize: '1.1rem' }}
+                  onClick={() => {
+                    // Generate random opponent for classic battle
+                    const randomOpponent = {
+                      name: 'Wild Opponent',
+                      stats: {
+                        hp: 80 + Math.floor(Math.random() * 40),
+                        attack: 10 + Math.floor(Math.random() * 15),
+                        defense: 5 + Math.floor(Math.random() * 10)
+                      }
+                    };
+                    setOpponentPet(randomOpponent);
+                    setRoute('classic-battle');
+                  }}
+                >
+                  🤖 Classic Battle
+                  <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>Fight AI opponents</div>
+                </button>
+                <button 
+                  className="btn btn-tertiary" 
+                  onClick={() => setRoute('home')}
+                  style={{ padding: '0.5rem 1rem' }}
+                >
+                  ← Back
+                </button>
+              </div>
+            </div>
+          </ErrorBoundary>
+        )}
+        {route === 'p2p-battle' && (
+          <ErrorBoundary>
+            <P2PBattleRoom
+              playerPet={{
+                ...playerPet,
+                stats: gameData.battleStats
+              }}
+              onBattleStart={(opponent) => {
+                console.log('P2P Battle started with:', opponent);
+              }}
+              onBattleComplete={(result) => {
+                console.log('P2P Battle completed:', result);
+                recordBattleResult(result.victory, result.tokens || 15, result.exp || 25);
+                incrementQuest('battles', 1);
+              }}
+              onExit={() => setRoute('home')}
+            />
+          </ErrorBoundary>
+        )}
+        {route === 'classic-battle' && (
+          <ErrorBoundary>
             <Battle
-              playerPet={playerPet}
+              playerPet={{
+                ...playerPet,
+                stats: gameData.battleStats
+              }}
               opponentPet={opponentPet}
-              onReward={reward}
-              onBattleEnd={() => setRoute('home')}
+              onReward={(amount) => giveTokens(amount)}
+              onBattleEnd={(result) => {
+                if (result) {
+                  recordBattleResult(result.victory, result.tokens || 10, result.exp || 15);
+                }
+                setRoute('home');
+              }}
             />
           </ErrorBoundary>
         )}
         {route === 'adventure' && (
           <ErrorBoundary>
-            <Adventure
-              party={[{ name: 'You' }]}
-              onReward={reward}
-              onExit={() => setRoute('home')}
-              applyStat={(stat, delta) => {
-                if (stat === 'tokens') setTokens((t) => Math.max(0, t + Number(delta || 0)))
-                if (stat === 'hunger') {
-                  // Bubble update via localStorage; HomeScreen reads from its own state
-                  const key = 'ct_adv_hunger_delta'
-                  localStorage.setItem(key, String(Number(localStorage.getItem(key) || '0') + Number(delta || 0)))
-                }
-                if (stat === 'happiness') {
-                  const key = 'ct_adv_happiness_delta'
-                  localStorage.setItem(key, String(Number(localStorage.getItem(key) || '0') + Number(delta || 0)))
-                }
-              }}
-            >
-            </Adventure>
+            <div style={{ padding: '2rem', maxWidth: '800px', margin: '0 auto' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                <h2 style={{ color: '#00ff99', margin: 0 }}>🗺️ Adventure Portal</h2>
+                <button 
+                  className="btn btn-tertiary" 
+                  onClick={() => setRoute('home')}
+                  style={{ padding: '0.5rem 1rem' }}
+                >
+                  ← Back Home
+                </button>
+              </div>
+              <AdventurePanel
+                pet={{
+                  ...gameData.petStats,
+                  name: petName || 'Your Pet'
+                }}
+                updatePetStats={updatePetStats}
+                giveTokens={giveTokens}
+              />
+            </div>
           </ErrorBoundary>
         )}
         {route === 'group' && (
           <ErrorBoundary>
-            <GroupAdventure walletPubkey={walletPubkey} onExit={() => setRoute('home')} />
+            <SimpleGroupAdventure walletPubkey={walletPubkey} onExit={() => setRoute('home')} />
+          </ErrorBoundary>
+        )}
+        {route === 'cyoa' && (
+          <ErrorBoundary>
+            <CYOAAdventure 
+              petName={petName || 'Your Pet'} 
+              onExit={() => setRoute('home')}
+              onComplete={(rewards) => {
+                if (rewards.experience) updatePetStats('experience', rewards.experience)
+                if (rewards.tokens) giveTokens(rewards.tokens)
+              }}
+            />
+          </ErrorBoundary>
+        )}
+        {route === 'garden' && (
+          <ErrorBoundary>
+            <div className="main-grid">
+              <div className="center">
+                <PetGarden 
+                  gardenId={window.location.hash.replace('#garden-', '') || 'starter'} 
+                  walletConnected={!!walletPubkey} 
+                />
+                <button 
+                  onClick={() => setRoute('home')} 
+                  style={{ marginTop: '16px' }}
+                  className="btn"
+                >
+                  Back Home
+                </button>
+              </div>
+            </div>
+          </ErrorBoundary>
+        )}
+
+        {route === 'stats' && (
+          <ErrorBoundary>
+            <div className="main-grid">
+              <div className="center">
+                <StatsBoard 
+                  selectedPet={selectedPet}
+                  walletConnected={!!walletPubkey} 
+                />
+                <button 
+                  onClick={() => setRoute('home')} 
+                  style={{ marginTop: '16px' }}
+                  className="btn"
+                >
+                  Back Home
+                </button>
+              </div>
+            </div>
+          </ErrorBoundary>
+        )}
+
+        {route === 'wallet' && (
+          <ErrorBoundary>
+            <div className="main-grid">
+              <div className="center">
+                <TokenWallet 
+                  walletPublicKey={walletPubkey}
+                  walletConnected={!!walletPubkey} 
+                />
+                <button 
+                  onClick={() => setRoute('home')} 
+                  style={{ marginTop: '16px' }}
+                  className="btn"
+                >
+                  Back Home
+                </button>
+              </div>
+            </div>
           </ErrorBoundary>
         )}
       </main>
+      
+      {/* Global Level Up Notification */}
+      {levelUpData && (
+        <LevelUpNotification
+          levelUpData={levelUpData}
+          onClose={() => setLevelUpData(null)}
+        />
+      )}
+      
+      {/* Global components */}
+      <MultiplayerStatus />
+      
+      {/* Global Navigation - accessible on all routes */}
+      {route === 'home' && (
+        <>
+          <SideDock
+            onFeed={() => {}} // These will be handled by HomeScreen
+            onPlay={() => {}}
+            onShop={() => {}} 
+            onQuests={() => setShowQuests(true)}
+            onAdventure={() => setRoute('adventure')}
+            onBattle={() => setRoute('battle')}
+            onDaily={() => setShowDaily(true)}
+            onLeaderboard={() => setShowLB(true)}
+            onGroup={() => {
+              console.log('🔍 Group Adventure clicked')
+              setRoute('group')
+            }}
+            onCYOA={() => {
+              console.log('📖 Story Quest clicked')
+              setRoute('cyoa')
+            }}
+            onGarden={() => {
+              console.log('🌱 Pet Garden clicked')
+              setRoute('garden')
+            }}
+            onStats={() => {
+              console.log('📊 Stats clicked')
+              setRoute('stats')
+            }}
+            onWallet={() => {
+              console.log('💰 Wallet clicked')
+              setRoute('wallet')
+            }}
+          />
+          <BottomDock
+            onFeed={() => {}} // These will be handled by HomeScreen
+            onPlay={() => {}}
+            onShop={() => {}}
+            onQuests={() => setShowQuests(true)}
+            onAdventure={() => setRoute('adventure')}
+            onBattle={() => setRoute('battle')}
+            onDaily={() => setShowDaily(true)}
+            onLeaderboard={() => setShowLB(true)}
+          />
+        </>
+      )}
+      
+      {/* Global Chat Sidebar */}
+      <ChatSidebar
+        isCollapsed={isChatCollapsed}
+        onToggle={() => setIsChatCollapsed(!isChatCollapsed)}
+        petName={petName || 'Your Pet'}
+        onSend={async (input, callback) => {
+          // Get pet traits for personality
+          const petTraits = (() => {
+            try {
+              return generateTraitsFromPubkey(walletPubkey || 'guest')
+            } catch { 
+              return { rarity: 'common' } 
+            }
+          })()
+          
+          // Create personality-enhanced prompt for API
+          const personalityPrompt = enhanceApiPrompt(
+            input,
+            selectedPet,
+            gameData.petStats.happiness,
+            gameData.petStats.hunger,
+            false, // sleeping state
+            petTraits.rarity || 'common',
+            petName
+          )
+          
+          // Try API with personality context
+          const apiResponse = await chatWithOssModel(personalityPrompt)
+          if (apiResponse) {
+            callback(apiResponse)
+            return
+          }
+          
+          // Fallback to personality-driven response
+          const personalityResponse = getPersonalityFallback(
+            input,
+            selectedPet,
+            gameData.petStats.happiness,
+            gameData.petStats.hunger,
+            false, // sleeping state
+            petTraits.rarity || 'common',
+            petName
+          )
+          
+          setTimeout(() => callback(personalityResponse), AI_RESPONSE_DELAY_MS)
+        }}
+      />
+      
       {/* Removed global footer to avoid duplicate */}
     </div>
   )

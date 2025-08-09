@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { createGroupAdventure, joinGroupAdventure, voteGroupAdventure } from '../api/client'
 
 async function loadAdventurePack(path = '/adventures/neon-portal.json') {
   try {

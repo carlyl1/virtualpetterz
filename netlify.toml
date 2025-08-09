@@ -19,6 +19,6 @@
   node_bundler = "esbuild"
 
 [template.environment]
-  HF_MODEL_URL = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2"
+  HF_MODEL_URL = "https://api-inference.huggingface.co/models/microsoft/DialoGPT-medium"
   HF_API_KEY = ""
   NODE_VERSION = "20"
