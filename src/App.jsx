@@ -35,6 +35,7 @@ import { getPet, savePet } from './api/client'
 // near imports
 import GroupAdventure from './components/GroupAdventure'
 import WalletHelp from './components/WalletHelp'
+import HatchIntro from './components/HatchIntro'
 
 const AI_RESPONSE_DELAY_MS = 800
 
@@ -299,6 +300,12 @@ function HomeScreen({ selectedPet, setSelectedPet, goBattle, goAdventure, tokens
         onDaily={openDaily}
         onLeaderboard={openLeaderboard}
       />
+      <footer>
+        <small>
+          <a href="/about">About</a> · <a href="/roadmap">Roadmap</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a>
+        </small>
+        <small>Token spends are simulated. Real integration coming soon!</small>
+      </footer>
     </div>
   )
 }
@@ -310,6 +317,7 @@ function MainApp() {
   const [showDaily, setShowDaily] = useState(false)
   const [showLB, setShowLB] = useState(false)
   const [showQuests, setShowQuests] = useState(false)
+  const [showHatch, setShowHatch] = useState(() => !localStorage.getItem('ct_hatched'))
 
   // persist per-wallet pet state
   const [walletPubkey, setWalletPubkey] = useState(null)
@@ -367,6 +375,9 @@ function MainApp() {
 
   return (
     <div className="app-container">
+      {showHatch && (
+        <HatchIntro onDone={() => { localStorage.setItem('ct_hatched', '1'); setShowHatch(false) }} />
+      )}
       <header>
         <h1>VirtualPetterz</h1>
         <div className="topbar">
@@ -431,13 +442,7 @@ function MainApp() {
           <GroupAdventure walletPubkey={walletPubkey} onExit={() => setRoute('home')} />
         )}
       </main>
-      <footer>
-        <nav>
-          <a href="/about">About</a>
-          <a href="/terms">Terms</a>
-          <a href="/privacy">Privacy</a>
-        </nav>
-      </footer>
+      {/* Removed global footer to avoid duplicate */}
     </div>
   )
 }
