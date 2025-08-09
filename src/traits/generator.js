@@ -96,6 +96,43 @@ export function generateTraitsFromPubkey(pubkey) {
     { key: 'shadow', w: 12 },
   ])
 
+  // Calculate rarity based on trait combinations
+  const calculateRarity = () => {
+    let rarityScore = 0
+    
+    // Species rarity contribution
+    if (['dragon', 'robo'].includes(species)) rarityScore += 40
+    else if (['wolf', 'duck'].includes(species)) rarityScore += 20
+    else rarityScore += 5
+    
+    // Aura rarity contribution
+    if (aura === 'prismatic') rarityScore += 30
+    else if (aura.includes('neon')) rarityScore += 15
+    else if (aura !== 'none') rarityScore += 5
+    
+    // Eyes rarity contribution
+    if (eyes === 'glow') rarityScore += 15
+    else if (eyes === 'visor') rarityScore += 10
+    else if (eyes === 'big') rarityScore += 5
+    
+    // Palette rarity contribution
+    if (palette === 'holo') rarityScore += 15
+    else if (palette === 'dusk') rarityScore += 8
+    else if (palette === 'pastel') rarityScore += 3
+    
+    // Special markings
+    if (markings === 'circuit') rarityScore += 10
+    else if (markings !== 'none') rarityScore += 3
+    
+    // Determine rarity tier
+    if (rarityScore >= 60) return 'legendary'
+    else if (rarityScore >= 35) return 'epic'
+    else if (rarityScore >= 18) return 'rare'
+    else return 'common'
+  }
+
+  const rarity = calculateRarity()
+
   return {
     ver: '1',
     wallet: pubkey || null,
@@ -109,5 +146,6 @@ export function generateTraitsFromPubkey(pubkey) {
     accessories: [],
     held: null,
     element,
+    rarity,
   }
 }

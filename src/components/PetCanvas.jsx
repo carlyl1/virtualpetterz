@@ -19,6 +19,9 @@ export default function PetCanvas({ petId = 'forest-fox', actionSignal, onPet, t
   const ref = useRef(null)
   const [sleeping, setSleeping] = useState(false)
   const actionRef = useRef(null)
+  const particlesRef = useRef([])
+  const getParticleRef = useRef(null)
+  const releaseParticleRef = useRef(null)
 
   useEffect(() => {
     const canvas = ref.current
@@ -42,7 +45,7 @@ export default function PetCanvas({ petId = 'forest-fox', actionSignal, onPet, t
       v: Math.random() * 0.2 + 0.05,
     }))
 
-    const particles = []
+    const particles = particlesRef.current
     const particlePool = []
     
     // Particle pool to reduce garbage collection
@@ -61,6 +64,10 @@ export default function PetCanvas({ petId = 'forest-fox', actionSignal, onPet, t
         particlePool.push(particle)
       }
     }
+    
+    // Store functions in refs for access in click handler
+    getParticleRef.current = getParticle
+    releaseParticleRef.current = releaseParticle
 
     let x = canvas.width / 2
     let y = canvas.height * 0.6
@@ -112,6 +119,8 @@ export default function PetCanvas({ petId = 'forest-fox', actionSignal, onPet, t
       if (stateTimer <= 0) {
         const options = ['idle', 'sit', 'wag', 'walk']
         if (!sleeping && Math.random() < 0.2) options.push('curl')
+        if (!sleeping && Math.random() < 0.15) options.push('scratch')
+        if (!sleeping && Math.random() < 0.1) options.push('stretch')
         transition(options[Math.floor(Math.random() * options.length)])
         if (state === 'walk') newTarget()
       }
@@ -263,7 +272,13 @@ export default function PetCanvas({ petId = 'forest-fox', actionSignal, onPet, t
       const size = Math.min(canvas.width, canvas.height) * 0.35 * (1 + (bounceFrames > 0 ? 0.08 : 0))
       const bob = sleeping ? Math.sin(frame / 20) * 3 : Math.sin(frame / 40) * 6
       const cx = x
-      const cy = y + bob + (state === 'sit' ? 6 : state === 'curl' ? 10 : 0)
+      const cy = y + bob + (
+        state === 'sit' ? 6 : 
+        state === 'curl' ? 10 : 
+        state === 'scratch' ? Math.sin(frame / 8) * 2 : 
+        state === 'stretch' ? -2 : 
+        0
+      )
 
       drawAura(cx, cy, size)
 
@@ -388,7 +403,42 @@ export default function PetCanvas({ petId = 'forest-fox', actionSignal, onPet, t
 
   const handleInteraction = (e) => { 
     e.preventDefault()
-    onPet?.() 
+    onPet?.()
+    
+    // Add petting hearts effect
+    const canvas = ref.current
+    if (canvas) {
+      const rect = canvas.getBoundingClientRect()
+      const scaleX = canvas.width / rect.width
+      const scaleY = canvas.height / rect.height
+      
+      let clientX, clientY
+      if (e.touches && e.touches[0]) {
+        clientX = e.touches[0].clientX
+        clientY = e.touches[0].clientY
+      } else {
+        clientX = e.clientX
+        clientY = e.clientY
+      }
+      
+      const clickX = (clientX - rect.left) * scaleX
+      const clickY = (clientY - rect.top) * scaleY
+      
+      // Create multiple heart particles at click location
+      if (getParticleRef.current && particlesRef.current) {
+        const heartCount = 3 + Math.floor(Math.random() * 3)
+        for (let i = 0; i < heartCount; i++) {
+          const heart = getParticleRef.current(
+            'heart', 
+            clickX + (Math.random() * 40 - 20), 
+            clickY + (Math.random() * 20 - 10), 
+            -0.3 - Math.random() * 0.4, 
+            40 + Math.random() * 20
+          )
+          particlesRef.current.push(heart)
+        }
+      }
+    }
   }
 
   return (

@@ -36,6 +36,7 @@ import { getPet, savePet } from './api/client'
 import GroupAdventure from './components/GroupAdventure'
 import WalletHelp from './components/WalletHelp'
 import HatchIntro from './components/HatchIntro'
+import HatchReveal from './components/HatchReveal'
 import NamePet from './components/NamePet'
 import ErrorBoundary, { PetCanvasErrorFallback, ChatErrorFallback } from './components/ErrorBoundary'
 import LoadingSpinner, { ChatLoadingIndicator } from './components/LoadingSpinner'
@@ -378,6 +379,8 @@ function MainApp() {
   const [showLB, setShowLB] = useState(false)
   const [showQuests, setShowQuests] = useState(false)
   const [showHatch, setShowHatch] = useState(() => !localStorage.getItem('ct_hatched'))
+  const [showReveal, setShowReveal] = useState(false)
+  const [showName, setShowName] = useState(false)
   const [petName, setPetName] = useState('')
 
   // persist per-wallet pet state
@@ -440,7 +443,27 @@ function MainApp() {
   return (
     <div className="app-container">
       {showHatch && (
-        <HatchIntro onDone={() => { localStorage.setItem('ct_hatched', '1'); setShowHatch(false); setTimeout(() => setShowName(true), 50) }} />
+        <HatchIntro onDone={() => { 
+          localStorage.setItem('ct_hatched', '1'); 
+          setShowHatch(false); 
+          setTimeout(() => setShowReveal(true), 200) 
+        }} />
+      )}
+      {showReveal && (
+        <HatchReveal 
+          petData={(() => {
+            try {
+              const pk = walletPubkey || 'guest'
+              return generateTraitsFromPubkey(pk)
+            } catch { 
+              return { species: 'fox', element: 'neutral', rarity: 'common', traits: {} } 
+            }
+          })()}
+          onDone={() => { 
+            setShowReveal(false); 
+            setTimeout(() => setShowName(true), 300) 
+          }} 
+        />
       )}
       {showName && <NamePet wallet={walletPubkey} onDone={(n) => { setPetName(n); setShowName(false) }} />}
       <header>

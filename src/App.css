@@ -4,6 +4,22 @@
   --accent-2: #00cc77;
   --bg: #121212;
   --text: #eeeeee;
+  
+  /* Typography Scale */
+  --font-xs: 10px;
+  --font-sm: 12px;
+  --font-md: 14px;
+  --font-lg: 16px;
+  --font-xl: 18px;
+  --font-2xl: 24px;
+  --font-3xl: 32px;
+  
+  /* Component-specific font sizes */
+  --stat-label-size: var(--font-sm);
+  --stat-value-size: var(--font-md);
+  --chat-text-size: var(--font-md);
+  --button-text-size: var(--font-sm);
+  --mood-text-size: var(--font-md);
 }
 
 body[data-theme='pastel'] {
@@ -91,23 +107,23 @@ header h1 { margin: 0; font-size: clamp(1.1rem, 2.4vw, 1.6rem); color: var(--acc
 
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin: 6px 0 16px; width: 100%; }
 .stat { text-align: left; }
-.stat-label { font-size: 10px; color: #b8ffe6; margin-bottom: 4px; }
+.stat-label { font-size: var(--stat-label-size); color: #b8ffe6; margin-bottom: 4px; }
 .bar { position: relative; height: 12px; border: 2px solid var(--accent); border-radius: 6px; background: #101a16; overflow: hidden; }
 .bar-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
 
 .pet-care { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 12px; }
 .pet-care button { padding: 12px 16px; font-family: inherit; font-weight: bold; background-color: var(--accent); border: none; cursor: pointer; border-radius: 6px; transition: background-color 0.2s ease; }
 .pet-care button:hover { background-color: var(--accent-2); }
-.mood-display { margin-top: 4px; font-weight: bold; color: #ccc; width: 100%; text-align: center; }
+.mood-display { margin-top: 4px; font-weight: bold; color: #ccc; width: 100%; text-align: center; font-size: var(--mood-text-size); }
 
 .loading { margin: 10px 0; font-style: italic; color: #aaa; }
 
 .chatbox { margin-top: 12px; border: 2px solid var(--accent); padding: 10px; background-color: #111; border-radius: 8px; max-height: 260px; display: flex; flex-direction: column; width: 100%; }
-.messages { flex: 1; overflow-y: auto; margin-bottom: 10px; font-size: 10px; color: #ccc; min-height: 120px; text-align: left; }
+.messages { flex: 1; overflow-y: auto; margin-bottom: 10px; font-size: var(--chat-text-size); color: #ccc; min-height: 120px; text-align: left; }
 .message.user { text-align: right; color: var(--accent); }
 .message.pet { text-align: left; color: #ffaa00; }
-.chatbox input { padding: 8px 10px; font-family: inherit; font-size: 10px; border: none; border-radius: 6px; outline: none; margin-bottom: 6px; }
-.chatbox button { padding: 10px 10px; font-family: inherit; font-weight: bold; background-color: var(--accent); border: none; cursor: pointer; border-radius: 6px; transition: background-color 0.2s ease; }
+.chatbox input { padding: 8px 10px; font-family: inherit; font-size: var(--chat-text-size); border: none; border-radius: 6px; outline: none; margin-bottom: 6px; }
+.chatbox button { padding: 10px 10px; font-family: inherit; font-weight: bold; background-color: var(--accent); border: none; cursor: pointer; border-radius: 6px; transition: background-color 0.2s ease; font-size: var(--button-text-size); }
 .chatbox button:hover { background-color: var(--accent-2); }
 
 footer small { display: block; margin-top: 15px; color: #888; text-align: center; }
@@ -121,13 +137,13 @@ footer small { display: block; margin-top: 15px; color: #888; text-align: center
 .battle-result { font-size: 14px; font-weight: bold; color: #ffaa00; margin-top: 10px; }
 
 /* bubbles + float feedback */
-.bubble { display: inline-block; padding: 6px 8px; border-radius: 8px; max-width: 90%; }
+.bubble { display: inline-block; padding: 6px 8px; border-radius: 8px; max-width: 90%; font-size: var(--chat-text-size); }
 .bubble.user { background: #0c3; color: #021; }
 .bubble.pet { background: #303; color: #fca; }
 .float-plus { position: absolute; animation: floatUp 900ms ease-out forwards; color: var(--accent); text-shadow: 0 0 6px var(--accent-2); font-size: 12px; }
 @keyframes floatUp { 0% { opacity: 0; transform: translateY(10px); } 10% { opacity: 1; } 100% { opacity: 0; transform: translateY(-24px); } }
 
-button { cursor: pointer; background: var(--accent); border: none; border-radius: 6px; padding: 10px 15px; font-family: 'Press Start 2P', cursive, monospace; color: #121212; font-weight: bold; box-shadow: 0 0 8px var(--accent-2); transition: background 0.2s ease; }
+button { cursor: pointer; background: var(--accent); border: none; border-radius: 6px; padding: 10px 15px; font-family: 'Press Start 2P', cursive, monospace; color: #121212; font-weight: bold; box-shadow: 0 0 8px var(--accent-2); transition: background 0.2s ease; font-size: var(--button-text-size); }
 button:hover { background: var(--accent-2); box-shadow: 0 0 10px var(--accent); }
 
 /* bottom dock */
