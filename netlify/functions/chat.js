@@ -96,7 +96,8 @@ exports.handler = async (event) => {
       modelUrlLength: HF_MODEL_URL ? HF_MODEL_URL.length : 0,
       apiKeyLength: HF_API_KEY ? HF_API_KEY.length : 0,
       input: sanitizedInput,
-      attempts: []
+      attempts: [],
+      modelUrlPreview: HF_MODEL_URL ? HF_MODEL_URL.replace(/^https:\/\/api-inference\.huggingface\.co\/models\//, '...models/') : null
     }
 
     if (HF_MODEL_URL && HF_API_KEY) {
@@ -195,7 +196,7 @@ exports.handler = async (event) => {
     }
 
     if (!output) {
-      output = "I'm your pixel pet! Tell me if you want to feed or play."
+      output = "I'm just a simple pet, but I love chatting with you!"
     }
 
     const body = DEBUG ? { output, debug: debugInfo, lastError } : { output }
