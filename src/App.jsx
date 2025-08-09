@@ -64,7 +64,8 @@ const AI_RESPONSE_DELAY_MS = 800
 async function chatWithOssModel(message) {
   // Try server-side chat endpoint first (for production)
   try {
-    const serverUrl = window.location.origin + '/chat';
+    // Force debug mode to see what's happening with HF API
+    const serverUrl = window.location.origin + '/chat?debug=1';
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
     
@@ -83,9 +84,18 @@ async function chatWithOssModel(message) {
       const data = await res.json();
       console.log('✅ Server chat response:', data);
       
-      if (data.output && data.output.trim() && 
-          !data.output.includes('simple pet') && 
-          data.output.length > 5) {
+      // Log debug info if available
+      if (data.debug) {
+        console.log('🔍 Chat Debug Info:', {
+          hasModelUrl: data.debug.hasModelUrl,
+          hasApiKey: data.debug.hasApiKey,
+          attempts: data.debug.attempts,
+          lastError: data.lastError
+        });
+      }
+      
+      // Return any non-empty response from HF API, even if it's a fallback
+      if (data.output && data.output.trim() && data.output.length > 5) {
         return data.output;
       }
     }
@@ -187,7 +197,7 @@ function PetActions({ onFeed, onPlay, mood }) {
   )
 }
 
-function HomeScreen({ selectedPet, setSelectedPet, goBattle, goAdventure, tokens, setTokens, openDaily, openLeaderboard, openQuests, petName, gameData, refreshGameData }) {
+function HomeScreen({ selectedPet, setSelectedPet, goBattle, goAdventure, tokens, setTokens, openDaily, openLeaderboard, openQuests, petName, gameData, refreshGameData, onShowAbout, onShowRoadmap, onShowStatus }) {
   const containerRef = useRef(null)
   const wallet = useWallet()
 
@@ -446,7 +456,25 @@ function HomeScreen({ selectedPet, setSelectedPet, goBattle, goAdventure, tokens
       )}
       <footer>
         <small>
-          <a href="/about">About</a> · <a href="/roadmap">Roadmap</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a>
+          <button 
+            onClick={onShowAbout}
+            style={{ background: 'none', border: 'none', color: 'inherit', textDecoration: 'underline', cursor: 'pointer', font: 'inherit' }}
+          >
+            About
+          </button> · 
+          <button 
+            onClick={onShowRoadmap}
+            style={{ background: 'none', border: 'none', color: 'inherit', textDecoration: 'underline', cursor: 'pointer', font: 'inherit' }}
+          >
+            Roadmap
+          </button> · 
+          <button 
+            onClick={onShowStatus}
+            style={{ background: 'none', border: 'none', color: 'inherit', textDecoration: 'underline', cursor: 'pointer', font: 'inherit' }}
+          >
+            Status
+          </button> · 
+          <span style={{ opacity: 0.6 }}>Terms · Privacy</span>
         </small>
         <small>In-game progress is saved locally and may be lost on browser data clear.</small>
       </footer>
@@ -692,6 +720,9 @@ function MainApp() {
                   petName={petName}
                   gameData={gameData}
                   refreshGameData={refreshGameData}
+                  onShowAbout={() => setShowAbout(true)}
+                  onShowRoadmap={() => setShowRoadmap(true)}
+                  onShowStatus={() => setShowStatus(true)}
                 />
               </div>
               
