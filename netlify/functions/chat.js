@@ -3,9 +3,31 @@ exports.handler = async (event) => {
     if (event.httpMethod !== 'POST') {
       return { statusCode: 405, body: 'Method Not Allowed' }
     }
+    
+    // Validate request body size
+    if (!event.body || event.body.length > 10000) {
+      return { statusCode: 400, body: JSON.stringify({ error: 'invalid request size' }) }
+    }
+    
     const { input } = JSON.parse(event.body || '{}')
+    
+    // Enhanced input validation
     if (!input || typeof input !== 'string') {
       return { statusCode: 400, body: JSON.stringify({ error: 'missing input' }) }
+    }
+    
+    if (input.length > 500) {
+      return { statusCode: 400, body: JSON.stringify({ error: 'input too long' }) }
+    }
+    
+    if (input.trim().length === 0) {
+      return { statusCode: 400, body: JSON.stringify({ error: 'empty input' }) }
+    }
+    
+    // Basic sanitization - remove potentially harmful content
+    const sanitizedInput = input.replace(/[<>]/g, '').trim()
+    if (sanitizedInput !== input.trim()) {
+      return { statusCode: 400, body: JSON.stringify({ error: 'invalid characters in input' }) }
     }
 
     const HF_MODEL_URL = process.env.HF_MODEL_URL
@@ -21,7 +43,7 @@ exports.handler = async (event) => {
       try {
         // Attempt A: messages format (some OSS chat backends expect this)
         const payloadA = {
-          inputs: [{ role: 'user', content: input }],
+          inputs: [{ role: 'user', content: sanitizedInput }],
           parameters: { max_new_tokens: 160, temperature: 0.8, return_full_text: false }
         }
         let res = await fetch(HF_MODEL_URL, {
@@ -41,7 +63,7 @@ exports.handler = async (event) => {
           res = await fetch(HF_MODEL_URL, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${HF_API_KEY}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ inputs: input, parameters: { max_new_tokens: 160, temperature: 0.8, return_full_text: false } }),
+            body: JSON.stringify({ inputs: sanitizedInput, parameters: { max_new_tokens: 160, temperature: 0.8, return_full_text: false } }),
             signal: controller.signal,
           })
           if (res.ok) {

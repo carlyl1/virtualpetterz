@@ -37,21 +37,41 @@ import GroupAdventure from './components/GroupAdventure'
 import WalletHelp from './components/WalletHelp'
 import HatchIntro from './components/HatchIntro'
 import NamePet from './components/NamePet'
+import ErrorBoundary, { PetCanvasErrorFallback, ChatErrorFallback } from './components/ErrorBoundary'
+import LoadingSpinner, { ChatLoadingIndicator } from './components/LoadingSpinner'
 
 const AI_RESPONSE_DELAY_MS = 800
 
 async function chatWithOssModel(message) {
   const url = import.meta.env.PUBLIC_CHAT_URL || '/chat'
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 15000) // 15 second timeout
+  
   try {
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ input: message }),
+      signal: controller.signal
     })
-    if (!res.ok) return null
+    
+    clearTimeout(timeoutId)
+    
+    if (!res.ok) {
+      console.warn('Chat API error:', res.status, res.statusText)
+      return null
+    }
+    
     const data = await res.json()
     return data?.output || data?.text || null
-  } catch (_e) {
+  } catch (error) {
+    clearTimeout(timeoutId)
+    
+    if (error.name === 'AbortError') {
+      console.warn('Chat request timed out')
+    } else {
+      console.error('Chat error:', error.message)
+    }
     return null
   }
 }
@@ -86,14 +106,18 @@ function StatBar({ label, value }) {
 function ChatBox({ onSend }) {
   const [inputText, setInputText] = useState('')
   const [messages, setMessages] = useState([])
+  const [isLoading, setIsLoading] = useState(false)
 
   const send = async () => {
-    if (!inputText.trim()) return
+    if (!inputText.trim() || isLoading) return
     const userMsg = { from: 'user', text: inputText }
     setMessages((prev) => [...prev, userMsg])
     const current = inputText
     setInputText('')
+    setIsLoading(true)
+    
     onSend(current, (response) => {
+      setIsLoading(false)
       setMessages((prev) => [...prev, { from: 'pet', text: response }])
     })
   }
@@ -110,14 +134,24 @@ function ChatBox({ onSend }) {
             <span className={`bubble ${m.from}`}>{m.text}</span>
           </div>
         ))}
+        {isLoading && (
+          <div className="message pet">
+            <div className="bubble pet">
+              <ChatLoadingIndicator />
+            </div>
+          </div>
+        )}
       </div>
       <input
         value={inputText}
         onChange={(e) => setInputText(e.target.value)}
         onKeyDown={onKeyDown}
         placeholder="Talk to your pet..."
+        disabled={isLoading}
       />
-      <button onClick={send}>Send</button>
+      <button onClick={send} disabled={isLoading}>
+        {isLoading ? 'Sending...' : 'Send'}
+      </button>
     </div>
   )
 }
@@ -144,6 +178,7 @@ function HomeScreen({ selectedPet, setSelectedPet, goBattle, goAdventure, tokens
   const [showSelector, setShowSelector] = useState(!selectedPet)
   const [showShop, setShowShop] = useState(false)
   const [actionSignal, setActionSignal] = useState(null)
+  const [isLoadingPetData, setIsLoadingPetData] = useState(false)
 
   useEffect(() => {
     if (wallet?.publicKey) {
@@ -185,16 +220,25 @@ function HomeScreen({ selectedPet, setSelectedPet, goBattle, goAdventure, tokens
 
   useEffect(() => {
     const load = async () => {
+      const pk = wallet?.publicKey?.toBase58?.()
+      if (!pk) return
+      
+      setIsLoadingPetData(true)
       try {
-        const pk = wallet?.publicKey?.toBase58?.()
-        if (!pk) return
         const res = await fetch(`/.netlify/functions/pet?wallet=${encodeURIComponent(pk)}`)
-        if (!res.ok) return
+        if (!res.ok) {
+          console.warn('Failed to load pet data:', res.status)
+          return
+        }
         const data = await res.json()
         if (data?.state?.hunger != null) setHunger(Number(data.state.hunger))
         if (data?.state?.happiness != null) setHappiness(Number(data.state.happiness))
         if (data?.state?.name) setPetName(String(data.state.name))
-      } catch {}
+      } catch (error) {
+        console.error('Error loading pet data:', error)
+      } finally {
+        setIsLoadingPetData(false)
+      }
     }
     load()
   }, [wallet?.publicKey])
@@ -267,21 +311,34 @@ function HomeScreen({ selectedPet, setSelectedPet, goBattle, goAdventure, tokens
       )}
       {showShop && <Shop onClose={() => setShowShop(false)} onUseItem={handleUseItem} />}
       <div className="scene">
-        <PetCanvas petId={selectedPet} traits={(() => {
-          try {
-            const pk = wallet?.publicKey?.toBase58?.()
-            return generateTraitsFromPubkey(pk || 'guest')
-          } catch { return null }
-        })()} onPet={() => setHappiness((v)=>Math.min(100,v+5))} actionSignal={actionSignal} />
+        <ErrorBoundary fallback={PetCanvasErrorFallback}>
+          <PetCanvas petId={selectedPet} traits={(() => {
+            try {
+              const pk = wallet?.publicKey?.toBase58?.()
+              return generateTraitsFromPubkey(pk || 'guest')
+            } catch { return null }
+          })()} onPet={() => setHappiness((v)=>Math.min(100,v+5))} actionSignal={actionSignal} />
+        </ErrorBoundary>
       </div>
       {petName && <div className="mood-display">Name: {petName}</div>}
       <div className="stats">
-        <StatBar label="Hunger" value={hunger} />
-        <StatBar label="Happiness" value={happiness} />
+        {isLoadingPetData ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px' }}>
+            <LoadingSpinner size="small" inline />
+            <span style={{ fontSize: '12px', color: 'var(--accent)' }}>Loading pet stats...</span>
+          </div>
+        ) : (
+          <>
+            <StatBar label="Hunger" value={hunger} />
+            <StatBar label="Happiness" value={happiness} />
+          </>
+        )}
       </div>
       <PetActions onFeed={feedPet} onPlay={playWithPet} mood={mood} />
       {(isFeeding || isPlaying) && <div className="loading">Processing...</div>}
-      <ChatBox onSend={handleChatSend} />
+      <ErrorBoundary fallback={ChatErrorFallback}>
+        <ChatBox onSend={handleChatSend} />
+      </ErrorBoundary>
       <SideDock
         onFeed={feedPet}
         onPlay={playWithPet}
@@ -420,35 +477,41 @@ function MainApp() {
           </>
         )}
         {route === 'battle' && (
-          <Battle
-            playerPet={playerPet}
-            opponentPet={opponentPet}
-            onReward={reward}
-            onBattleEnd={() => setRoute('home')}
-          />
+          <ErrorBoundary>
+            <Battle
+              playerPet={playerPet}
+              opponentPet={opponentPet}
+              onReward={reward}
+              onBattleEnd={() => setRoute('home')}
+            />
+          </ErrorBoundary>
         )}
         {route === 'adventure' && (
-          <Adventure
-            party={[{ name: 'You' }]}
-            onReward={reward}
-            onExit={() => setRoute('home')}
-            applyStat={(stat, delta) => {
-              if (stat === 'tokens') setTokens((t) => Math.max(0, t + Number(delta || 0)))
-              if (stat === 'hunger') {
-                // Bubble update via localStorage; HomeScreen reads from its own state
-                const key = 'ct_adv_hunger_delta'
-                localStorage.setItem(key, String(Number(localStorage.getItem(key) || '0') + Number(delta || 0)))
-              }
-              if (stat === 'happiness') {
-                const key = 'ct_adv_happiness_delta'
-                localStorage.setItem(key, String(Number(localStorage.getItem(key) || '0') + Number(delta || 0)))
-              }
-            }}
-          >
-          </Adventure>
+          <ErrorBoundary>
+            <Adventure
+              party={[{ name: 'You' }]}
+              onReward={reward}
+              onExit={() => setRoute('home')}
+              applyStat={(stat, delta) => {
+                if (stat === 'tokens') setTokens((t) => Math.max(0, t + Number(delta || 0)))
+                if (stat === 'hunger') {
+                  // Bubble update via localStorage; HomeScreen reads from its own state
+                  const key = 'ct_adv_hunger_delta'
+                  localStorage.setItem(key, String(Number(localStorage.getItem(key) || '0') + Number(delta || 0)))
+                }
+                if (stat === 'happiness') {
+                  const key = 'ct_adv_happiness_delta'
+                  localStorage.setItem(key, String(Number(localStorage.getItem(key) || '0') + Number(delta || 0)))
+                }
+              }}
+            >
+            </Adventure>
+          </ErrorBoundary>
         )}
         {route === 'group' && (
-          <GroupAdventure walletPubkey={walletPubkey} onExit={() => setRoute('home')} />
+          <ErrorBoundary>
+            <GroupAdventure walletPubkey={walletPubkey} onExit={() => setRoute('home')} />
+          </ErrorBoundary>
         )}
       </main>
       {/* Removed global footer to avoid duplicate */}

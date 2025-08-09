@@ -26,6 +26,9 @@ export default function PetCanvas({ petId = 'forest-fox', actionSignal, onPet, t
     const ctx = canvas.getContext('2d')
     let frame = 0
     let raf = 0
+    let lastFrameTime = 0
+    const targetFPS = 30
+    const frameInterval = 1000 / targetFPS
 
     const img = new Image()
     img.src = SPRITES[petId] || SPRITES['forest-fox']
@@ -40,6 +43,24 @@ export default function PetCanvas({ petId = 'forest-fox', actionSignal, onPet, t
     }))
 
     const particles = []
+    const particlePool = []
+    
+    // Particle pool to reduce garbage collection
+    const getParticle = (kind, x, y, vy, life) => {
+      const particle = particlePool.pop() || {}
+      particle.kind = kind
+      particle.x = x
+      particle.y = y
+      particle.vy = vy
+      particle.life = life
+      return particle
+    }
+    
+    const releaseParticle = (particle) => {
+      if (particlePool.length < 50) { // Cap pool size
+        particlePool.push(particle)
+      }
+    }
 
     let x = canvas.width / 2
     let y = canvas.height * 0.6
@@ -74,11 +95,11 @@ export default function PetCanvas({ petId = 'forest-fox', actionSignal, onPet, t
         if (type === 'play') {
           bounceFrames = 60
           for (let i = 0; i < 12; i++) {
-            particles.push({ kind: 'spark', x: x + (Math.random() * 80 - 40), y: y - 30 + (Math.random() * 20 - 10), vy: -0.6 - Math.random() * 0.6, life: 60 + Math.random() * 30 })
+            particles.push(getParticle('spark', x + (Math.random() * 80 - 40), y - 30 + (Math.random() * 20 - 10), -0.6 - Math.random() * 0.6, 60 + Math.random() * 30))
           }
         } else if (type === 'eat') {
           for (let i = 0; i < 8; i++) {
-            particles.push({ kind: 'eat', x: x + (Math.random() * 40 - 20), y: y - 20 + (Math.random() * 10 - 5), vy: -0.4 - Math.random() * 0.4, life: 50 + Math.random() * 20 })
+            particles.push(getParticle('eat', x + (Math.random() * 40 - 20), y - 20 + (Math.random() * 10 - 5), -0.4 - Math.random() * 0.4, 50 + Math.random() * 20))
           }
         } else if (type === 'sleep') {
           setSleeping(true)
@@ -114,7 +135,7 @@ export default function PetCanvas({ petId = 'forest-fox', actionSignal, onPet, t
 
       // occasional idle emotes
       if (!sleeping && Math.random() < 0.01) {
-        particles.push({ kind: 'spark', x: x + (Math.random() * 60 - 30), y: y - 30, vy: -0.4, life: 60 })
+        particles.push(getParticle('spark', x + (Math.random() * 60 - 30), y - 30, -0.4, 60))
       }
     }
 
@@ -221,8 +242,22 @@ export default function PetCanvas({ petId = 'forest-fox', actionSignal, onPet, t
       ctx.restore()
     }
 
-    function loop() {
+    function loop(currentTime = 0) {
+      // Frame throttling for better performance
+      const deltaTime = currentTime - lastFrameTime
+      
+      if (deltaTime < frameInterval) {
+        raf = requestAnimationFrame(loop)
+        return
+      }
+      
+      lastFrameTime = currentTime - (deltaTime % frameInterval)
+
       updateState()
+      
+      // Clear canvas efficiently
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      
       drawBackground()
 
       const size = Math.min(canvas.width, canvas.height) * 0.35 * (1 + (bounceFrames > 0 ? 0.08 : 0))
@@ -232,61 +267,118 @@ export default function PetCanvas({ petId = 'forest-fox', actionSignal, onPet, t
 
       drawAura(cx, cy, size)
 
+      // Optimize image drawing
       ctx.save()
       ctx.imageSmoothingEnabled = false
       ctx.translate(cx, cy)
-      ctx.drawImage(img, -size / 2, -size / 2, size, size)
+      if (img.complete && img.naturalWidth > 0) {
+        ctx.drawImage(img, -size / 2, -size / 2, size, size)
+      }
       ctx.restore()
 
       drawMarkings(cx, cy, size)
       drawEyes(cx, cy - size * 0.05)
 
-      for (let i = particles.length - 1; i >= 0; i--) {
-        const p = particles[i]
-        p.y += p.vy
-        p.life--
-        if (p.life <= 0) { particles.splice(i, 1); continue }
-        ctx.save()
-        ctx.globalAlpha = Math.max(0, p.life / 60)
-        if (p.kind === 'heart') {
-          ctx.fillStyle = '#ff66aa'
-          ctx.font = '16px monospace'
-          ctx.fillText('❤', p.x, p.y)
-        } else if (p.kind === 'spark') {
-          ctx.fillStyle = '#ffd37a'
-          ctx.fillRect(p.x, p.y, 3, 3)
-        } else if (p.kind === 'eat') {
-          ctx.fillStyle = '#aaffcc'
-          ctx.font = '14px monospace'
-          ctx.fillText('🍖', p.x, p.y)
+      // Optimize particle rendering
+      if (particles.length > 0) {
+        for (let i = particles.length - 1; i >= 0; i--) {
+          const p = particles[i]
+          p.y += p.vy
+          p.life--
+          if (p.life <= 0) { 
+            releaseParticle(particles[i])
+            particles.splice(i, 1)
+            continue 
+          }
+          
+          const alpha = Math.max(0, p.life / 60)
+          if (alpha > 0.01) { // Skip nearly invisible particles
+            ctx.save()
+            ctx.globalAlpha = alpha
+            if (p.kind === 'heart') {
+              ctx.fillStyle = '#ff66aa'
+              ctx.font = '16px monospace'
+              ctx.fillText('❤', p.x, p.y)
+            } else if (p.kind === 'spark') {
+              ctx.fillStyle = '#ffd37a'
+              ctx.fillRect(p.x, p.y, 3, 3)
+            } else if (p.kind === 'eat') {
+              ctx.fillStyle = '#aaffcc'
+              ctx.font = '14px monospace'
+              ctx.fillText('🍖', p.x, p.y)
+            }
+            ctx.restore()
+          }
         }
-        ctx.restore()
       }
 
-      if (sleeping || state === 'curl') {
-        if (frame % 60 < 30) {
-          ctx.fillStyle = '#9cf'
-          ctx.font = '16px monospace'
-          ctx.fillText('Z', x + 40, y - 40)
-        }
+      // Only draw sleep indicators when needed
+      if ((sleeping || state === 'curl') && frame % 60 < 30) {
+        ctx.fillStyle = '#9cf'
+        ctx.font = '16px monospace'
+        ctx.fillText('Z', x + 40, y - 40)
       }
 
       raf = requestAnimationFrame(loop)
     }
 
-    function onMove(e) {
+    function getEventPos(e) {
       const rect = canvas.getBoundingClientRect()
-      targetX = e.clientX - rect.left
-      targetY = e.clientY - rect.top
+      const scaleX = canvas.width / rect.width
+      const scaleY = canvas.height / rect.height
+      
+      let clientX, clientY
+      
+      if (e.touches && e.touches[0]) {
+        // Touch event
+        clientX = e.touches[0].clientX
+        clientY = e.touches[0].clientY
+      } else {
+        // Mouse event
+        clientX = e.clientX
+        clientY = e.clientY
+      }
+      
+      return {
+        x: (clientX - rect.left) * scaleX,
+        y: (clientY - rect.top) * scaleY
+      }
+    }
+
+    function onMove(e) {
+      e.preventDefault() // Prevent scrolling on mobile
+      const pos = getEventPos(e)
+      targetX = pos.x
+      targetY = pos.y
       chaseUntil = performance.now() + 1200
     }
 
+    function onTouchStart(e) {
+      e.preventDefault()
+      onMove(e)
+    }
+
+    function onTouchMove(e) {
+      e.preventDefault()
+      onMove(e)
+    }
+
+    // Mouse events
     canvas.addEventListener('mousemove', onMove)
+    
+    // Touch events for mobile
+    canvas.addEventListener('touchstart', onTouchStart, { passive: false })
+    canvas.addEventListener('touchmove', onTouchMove, { passive: false })
 
     img.onload = () => { raf = requestAnimationFrame(loop) }
     raf = requestAnimationFrame(loop)
 
-    return () => { cancelAnimationFrame(raf); canvas.removeEventListener('mousemove', onMove) }
+    return () => { 
+      cancelAnimationFrame(raf)
+      canvas.removeEventListener('mousemove', onMove)
+      canvas.removeEventListener('touchstart', onTouchStart)
+      canvas.removeEventListener('touchmove', onTouchMove)
+    }
   }, [petId, sleeping, traits])
 
   useEffect(() => {
@@ -294,11 +386,21 @@ export default function PetCanvas({ petId = 'forest-fox', actionSignal, onPet, t
     actionRef.current = actionSignal
   }, [actionSignal])
 
-  const handleClick = () => { onPet?.() }
+  const handleInteraction = (e) => { 
+    e.preventDefault()
+    onPet?.() 
+  }
 
   return (
     <div style={{ position: 'relative', width: '100%', display: 'flex', justifyContent: 'center' }}>
-      <canvas ref={ref} width={1200} height={700} style={{ width: '100%', height: 'min(60vh, 640px)', cursor: 'pointer' }} onClick={handleClick} />
+      <canvas 
+        ref={ref} 
+        width={1200} 
+        height={700} 
+        style={{ width: '100%', height: 'min(60vh, 640px)', cursor: 'pointer', touchAction: 'none' }} 
+        onClick={handleInteraction}
+        onTouchEnd={handleInteraction}
+      />
       <div style={{ position: 'absolute', top: 8, right: 8 }}>
         <button onClick={() => setSleeping((s) => !s)}>{sleeping ? 'Wake' : 'Sleep'}</button>
       </div>

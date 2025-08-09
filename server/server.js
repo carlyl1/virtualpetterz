@@ -62,8 +62,27 @@ app.get('/ready', (_req, res) => {
 app.post('/chat', chatLimiter, async (req, res) => {
   try {
     const input = (req.body?.input || '').toString()
-    if (!input) return res.status(400).json({ error: 'missing input' })
-    const hf = await callHuggingFace(input).catch(() => null)
+    
+    // Enhanced input validation
+    if (!input || typeof input !== 'string') {
+      return res.status(400).json({ error: 'missing input' })
+    }
+    
+    if (input.length > 500) {
+      return res.status(400).json({ error: 'input too long' })
+    }
+    
+    if (input.trim().length === 0) {
+      return res.status(400).json({ error: 'empty input' })
+    }
+    
+    // Basic sanitization
+    const sanitizedInput = input.replace(/[<>]/g, '').trim()
+    if (sanitizedInput !== input.trim()) {
+      return res.status(400).json({ error: 'invalid characters in input' })
+    }
+    
+    const hf = await callHuggingFace(sanitizedInput).catch(() => null)
     if (hf != null) return res.json({ output: hf })
     return res.json({ output: "I'm your pixel pet! Tell me if you want to feed or play." })
   } catch (e) {
