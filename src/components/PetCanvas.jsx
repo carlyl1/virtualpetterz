@@ -18,6 +18,7 @@ function paletteColors(palette) {
 export default function PetCanvas({ petId = 'forest-fox', actionSignal, onPet, traits }) {
   const ref = useRef(null)
   const [sleeping, setSleeping] = useState(false)
+  const actionRef = useRef(null)
 
   useEffect(() => {
     const canvas = ref.current
@@ -41,41 +42,78 @@ export default function PetCanvas({ petId = 'forest-fox', actionSignal, onPet, t
     const particles = []
 
     let x = canvas.width / 2
-    let y = canvas.height / 2
-    let speed = 0.7
+    let y = canvas.height * 0.6
+    let speed = 0.9
     let targetX = x
     let targetY = y
+    let chaseUntil = 0
+    let bounceFrames = 0
 
     function newTarget() {
       targetX = Math.random() * (canvas.width - 240) + 120
-      targetY = canvas.height * (0.45 + Math.random() * 0.2)
+      targetY = canvas.height * (0.5 + Math.random() * 0.15)
     }
 
     let state = 'idle'
     let stateTimer = 300
-    const actionCooldown = { bounce: 0 }
+    let idleTicks = 0
     function transition(next) { state = next; stateTimer = 240 + Math.floor(Math.random() * 240) }
     function updateState() {
+      frame++
       stateTimer--
-      actionCooldown.bounce = Math.max(0, actionCooldown.bounce - 1)
+      idleTicks++
+      if (bounceFrames > 0) bounceFrames--
+
+      // occasional auto sleep/wake
+      if (!sleeping && idleTicks > 1200 && Math.random() < 0.002) { setSleeping(true); idleTicks = 0 }
+      if (sleeping && Math.random() < 0.01) { setSleeping(false) }
+
+      // react to external actions once
+      if (actionRef.current) {
+        const { type } = actionRef.current
+        if (type === 'play') {
+          bounceFrames = 60
+          for (let i = 0; i < 12; i++) {
+            particles.push({ kind: 'spark', x: x + (Math.random() * 80 - 40), y: y - 30 + (Math.random() * 20 - 10), vy: -0.6 - Math.random() * 0.6, life: 60 + Math.random() * 30 })
+          }
+        } else if (type === 'eat') {
+          for (let i = 0; i < 8; i++) {
+            particles.push({ kind: 'eat', x: x + (Math.random() * 40 - 20), y: y - 20 + (Math.random() * 10 - 5), vy: -0.4 - Math.random() * 0.4, life: 50 + Math.random() * 20 })
+          }
+        } else if (type === 'sleep') {
+          setSleeping(true)
+        } else if (type === 'wake') {
+          setSleeping(false)
+        }
+        actionRef.current = null
+      }
+
       if (stateTimer <= 0) {
         const options = ['idle', 'sit', 'wag', 'walk']
         if (!sleeping && Math.random() < 0.2) options.push('curl')
         transition(options[Math.floor(Math.random() * options.length)])
         if (state === 'walk') newTarget()
       }
-      if (state === 'walk') {
+
+      // movement towards target; chase cursor while active
+      const now = performance.now()
+      if (now < chaseUntil) {
         const dx = targetX - x
         const dy = targetY - y
         const dist = Math.hypot(dx, dy)
-        if (dist < 4) newTarget()
-        else {
-          x += (dx / dist) * speed
-          y += (dy / dist) * speed
+        if (dist > 1) { x += (dx / dist) * (speed + 0.7); y += (dy / dist) * (speed + 0.5) }
+      } else if (!sleeping) {
+        if (state === 'walk') {
+          const dx = targetX - x
+          const dy = targetY - y
+          const dist = Math.hypot(dx, dy)
+          if (dist < 4) newTarget()
+          else { x += (dx / dist) * speed; y += (dy / dist) * speed }
         }
       }
+
       // occasional idle emotes
-      if (Math.random() < 0.01) {
+      if (!sleeping && Math.random() < 0.01) {
         particles.push({ kind: 'spark', x: x + (Math.random() * 60 - 30), y: y - 30, vy: -0.4, life: 60 })
       }
     }
@@ -184,30 +222,13 @@ export default function PetCanvas({ petId = 'forest-fox', actionSignal, onPet, t
     }
 
     function loop() {
-      frame++
       updateState()
       drawBackground()
 
-      if (!sleeping) {
-        if (state === 'walk') {
-          x += vx
-          if (x < 120 || x > canvas.width - 120) vx *= -1
-        } else if (state === 'wag') {
-          vy = Math.sin(frame / 8) * 0.2
-        } else {
-          vy = Math.sin(frame / 40) * 0.15
-        }
-        y = canvas.height * 0.6 + vy * 30
-      } else {
-        y = canvas.height * 0.6 + Math.sin(frame / 20) * 3
-      }
-
-      const b = Math.max(0, bounce)
-      if (bounce > 0) bounce -= 0.02
-
-      const size = Math.min(canvas.width, canvas.height) * 0.35 * (1 + (actionCooldown.bounce > 0 ? 0.08 : 0))
+      const size = Math.min(canvas.width, canvas.height) * 0.35 * (1 + (bounceFrames > 0 ? 0.08 : 0))
+      const bob = sleeping ? Math.sin(frame / 20) * 3 : Math.sin(frame / 40) * 6
       const cx = x
-      const cy = y + (state === 'sit' ? 6 : state === 'curl' ? 10 : 0)
+      const cy = y + bob + (state === 'sit' ? 6 : state === 'curl' ? 10 : 0)
 
       drawAura(cx, cy, size)
 
@@ -253,27 +274,24 @@ export default function PetCanvas({ petId = 'forest-fox', actionSignal, onPet, t
       raf = requestAnimationFrame(loop)
     }
 
+    function onMove(e) {
+      const rect = canvas.getBoundingClientRect()
+      targetX = e.clientX - rect.left
+      targetY = e.clientY - rect.top
+      chaseUntil = performance.now() + 1200
+    }
+
+    canvas.addEventListener('mousemove', onMove)
+
     img.onload = () => { raf = requestAnimationFrame(loop) }
     raf = requestAnimationFrame(loop)
 
-    return () => cancelAnimationFrame(raf)
+    return () => { cancelAnimationFrame(raf); canvas.removeEventListener('mousemove', onMove) }
   }, [petId, sleeping, traits])
 
   useEffect(() => {
     if (!actionSignal) return
-    const { type } = actionSignal
-    if (type === 'sleep') setSleeping(true)
-    if (type === 'wake') setSleeping(false)
-    if (type === 'play') {
-      // bounce effect
-      // reuse actionCooldown via re-render-safe approach by creating transient particles
-      for (let i = 0; i < 8; i++) {
-        // sparks
-      }
-    }
-    if (type === 'eat') {
-      // eat emote
-    }
+    actionRef.current = actionSignal
   }, [actionSignal])
 
   const handleClick = () => { onPet?.() }
