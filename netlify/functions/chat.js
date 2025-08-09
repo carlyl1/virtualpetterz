@@ -102,7 +102,7 @@ exports.handler = async (event) => {
       try {
         const payload = {
           messages: [{ role: 'user', content: sanitizedInput }],
-          model: 'mixtral-8x7b-32768', // Fast and good model
+          model: 'llama-3.1-8b-instant', // Fast and current model
           max_tokens: 150,
           temperature: 0.8
         }
@@ -121,7 +121,7 @@ exports.handler = async (event) => {
           service: 'groq',
           status: res.status,
           ok: res.ok,
-          model: 'mixtral-8x7b-32768'
+          model: 'llama-3.1-8b-instant'
         })
         
         if (res.ok) {
