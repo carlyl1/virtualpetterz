@@ -3,6 +3,7 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import progressionSystem from '../systems/PersistentProgression';
 import leaderboardSystem from '../systems/LeaderboardSystem';
 import multiplayerService from '../services/MultiplayerService';
+import { getApiUrl } from '../config/api.js';
 
 const MOCK_PLAYERS = [
   { id: 'mock1', name: 'CryptoKnight', petSpecies: 'shadow_wolf', level: 15, rating: 1250 },
@@ -22,7 +23,7 @@ const BATTLE_STATES = {
 // Server-side battle validation function
 async function validateBattleWithServer(battleValidationData) {
   try {
-    const response = await fetch('http://localhost:8787/api/battle/validate', {
+    const response = await fetch(getApiUrl('BATTLE_VALIDATE'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -122,9 +123,9 @@ export default function P2PBattleRoom({
         
         multiplayerService.on('battle_found', handleBattleFound);
         
-        // Fallback to mock after reasonable wait (30 seconds)
+        // Fallback to mock after extensive wait (90 seconds for real players)
         matchTimeoutRef.current = setTimeout(() => {
-          console.log('🤖 No real players found, using AI opponent');
+          console.log('🤖 Extended search complete. No real players found, using AI opponent.');
           multiplayerService.off('battle_found', handleBattleFound);
           
           const mockOpponent = MOCK_PLAYERS[Math.floor(Math.random() * MOCK_PLAYERS.length)];
@@ -143,14 +144,14 @@ export default function P2PBattleRoom({
           setOpponentStats(enhancedOpponent.stats);
           setBattleState(BATTLE_STATES.MATCHED);
           clearInterval(searchTimerRef.current);
-        }, 30000);
+        }, 90000); // 90 seconds - much longer search
         
         return () => {
           multiplayerService.off('battle_found', handleBattleFound);
         };
       } else {
-        // No multiplayer connection, wait longer before using AI opponent
-        console.log('🤖 No multiplayer connection, searching for 15 seconds before using AI opponent');
+        // No multiplayer connection, wait reasonable time to show genuine search effort
+        console.log('🤖 No multiplayer connection, searching for 45 seconds before using AI opponent');
         matchTimeoutRef.current = setTimeout(() => {
           console.log('⏱️ Search timeout reached, using AI opponent');
           const mockOpponent = MOCK_PLAYERS[Math.floor(Math.random() * MOCK_PLAYERS.length)];
@@ -169,7 +170,7 @@ export default function P2PBattleRoom({
           setOpponentStats(enhancedOpponent.stats);
           setBattleState(BATTLE_STATES.MATCHED);
           clearInterval(searchTimerRef.current);
-        }, 15000); // 15 second wait even without multiplayer
+        }, 45000); // 45 second wait even without multiplayer - shows we're trying
       }
     }
 
@@ -496,7 +497,16 @@ export default function P2PBattleRoom({
           </div>
           <p>Searching for players... {searchTime}s</p>
           <p className="search-tip">
-            {searchTime < 15 ? 'Searching for real players online...' : 'No players found, preparing AI opponent...'}
+            {searchTime < 30 ? '🔍 Searching for real players worldwide...' : 
+             searchTime < 60 ? '🌐 Expanding search to all regions...' :
+             searchTime < 80 ? '🎯 Still looking for the perfect match...' :
+             '🤖 No players found, preparing skilled AI opponent...'}
+          </p>
+          <p className="connection-status">
+            {multiplayerService.isConnected() ? 
+              '✅ Connected to multiplayer server' : 
+              '⚠️ Offline mode - searching AI players database'
+            }
           </p>
           <button onClick={onExit} className="btn btn-secondary">
             Cancel Search

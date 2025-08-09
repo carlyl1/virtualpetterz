@@ -135,7 +135,9 @@ export default function AdventurePanel({ pet, updatePetStats, giveTokens }) {
         borderRadius: 4,
         border: '1px solid #333'
       }} 
-      dangerouslySetInnerHTML={{__html: adventure.story}} />
+    >
+      {adventure.story}
+    </div>
       
       <div style={{ 
         display: 'flex', 

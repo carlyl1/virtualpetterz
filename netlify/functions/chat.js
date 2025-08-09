@@ -1,33 +1,87 @@
 exports.handler = async (event) => {
   try {
+    // Handle preflight requests
+    if (event.httpMethod === 'OPTIONS') {
+      return {
+        statusCode: 200,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type'
+        }
+      };
+    }
+    
     if (event.httpMethod !== 'POST') {
-      return { statusCode: 405, body: 'Method Not Allowed' }
+      return { 
+        statusCode: 405, 
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ error: 'Method Not Allowed' })
+      }
     }
     
     // Validate request body size
     if (!event.body || event.body.length > 10000) {
-      return { statusCode: 400, body: JSON.stringify({ error: 'invalid request size' }) }
+      return { 
+        statusCode: 400, 
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ error: 'invalid request size' }) 
+      }
     }
     
     const { input } = JSON.parse(event.body || '{}')
     
     // Enhanced input validation
     if (!input || typeof input !== 'string') {
-      return { statusCode: 400, body: JSON.stringify({ error: 'missing input' }) }
+      return { 
+        statusCode: 400, 
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ error: 'missing input' }) 
+      }
     }
     
     if (input.length > 500) {
-      return { statusCode: 400, body: JSON.stringify({ error: 'input too long' }) }
+      return { 
+        statusCode: 400, 
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ error: 'input too long' }) 
+      }
     }
     
     if (input.trim().length === 0) {
-      return { statusCode: 400, body: JSON.stringify({ error: 'empty input' }) }
+      return { 
+        statusCode: 400, 
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ error: 'empty input' }) 
+      }
     }
     
     // Basic sanitization - remove potentially harmful content
     const sanitizedInput = input.replace(/[<>]/g, '').trim()
     if (sanitizedInput !== input.trim()) {
-      return { statusCode: 400, body: JSON.stringify({ error: 'invalid characters in input' }) }
+      return { 
+        statusCode: 400, 
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ error: 'invalid characters in input' }) 
+      }
     }
 
     const HF_MODEL_URL = process.env.HF_MODEL_URL
@@ -148,10 +202,23 @@ exports.handler = async (event) => {
 
     return {
       statusCode: 200,
-      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+      headers: { 
+        'Content-Type': 'application/json', 
+        'Cache-Control': 'no-store',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type'
+      },
       body: JSON.stringify(body)
     }
   } catch (e) {
-    return { statusCode: 500, body: JSON.stringify({ error: 'chat failed' }) }
+    return { 
+      statusCode: 500, 
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ error: 'chat failed' }) 
+    }
   }
 }

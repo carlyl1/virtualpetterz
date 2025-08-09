@@ -103,13 +103,24 @@ export default function PetWorld({
     
     ctx.restore()
     
-    // Draw mood indicators
+    // Draw mood indicators and interaction effects
     if (pet.mood === 'excited') {
       drawHearts(ctx, x, y - size * 0.6)
     } else if (pet.mood === 'grumpy') {
       drawAngerMark(ctx, x + size * 0.3, y - size * 0.5)
     } else if (pet.mood === 'sleepy') {
       drawSleepZ(ctx, x + size * 0.4, y - size * 0.7)
+    }
+    
+    // Draw interaction indicators based on behavior
+    if (pet.behavior?.includes('playing_with_toy')) {
+      drawPlayingEffect(ctx, x, y - size * 0.4)
+    } else if (pet.behavior?.includes('using_bed')) {
+      drawComfortEffect(ctx, x, y - size * 0.5)
+    } else if (pet.behavior?.includes('seeking_food') || pet.behavior?.includes('exploring_foodbowl')) {
+      drawHungryEffect(ctx, x, y - size * 0.5)
+    } else if (pet.behavior?.includes('seeking_') || pet.behavior?.includes('exploring_')) {
+      drawCuriousEffect(ctx, x, y - size * 0.5)
     }
   }
 
@@ -495,6 +506,270 @@ export default function PetWorld({
     ctx.fillText('💤', x, y)
   }
 
+  // New interaction effect functions
+  const drawPlayingEffect = (ctx, x, y) => {
+    ctx.fillStyle = '#FFD700'
+    ctx.font = '16px Arial'
+    const bounce = Math.sin(Date.now() * 0.01) * 3
+    ctx.fillText('✨', x - 8, y + bounce)
+  }
+
+  const drawComfortEffect = (ctx, x, y) => {
+    ctx.fillStyle = '#FF69B4'
+    ctx.font = '14px Arial'
+    ctx.fillText('😴', x - 7, y)
+  }
+
+  const drawHungryEffect = (ctx, x, y) => {
+    ctx.fillStyle = '#FF6B6B'
+    ctx.font = '16px Arial'
+    const pulse = Math.sin(Date.now() * 0.005) * 0.2 + 1
+    ctx.save()
+    ctx.scale(pulse, pulse)
+    ctx.fillText('🍖', x / pulse - 8, y / pulse)
+    ctx.restore()
+  }
+
+  const drawCuriousEffect = (ctx, x, y) => {
+    ctx.fillStyle = '#4ECDC4'
+    ctx.font = '14px Arial'
+    ctx.fillText('❓', x - 7, y)
+  }
+
+  // Interactive objects in the world
+  const interactiveObjects = useRef([
+    {
+      id: 'bed',
+      type: 'furniture',
+      x: 150,
+      y: (height) => height * 0.65,
+      width: 120,
+      height: 60,
+      name: 'Cozy Bed',
+      effect: 'rest',
+      interactionRadius: 100,
+      lastUsed: 0
+    },
+    {
+      id: 'foodbowl',
+      type: 'utility',
+      x: 300,
+      y: (height) => height * 0.72,
+      width: 60,
+      height: 40,
+      name: 'Food Bowl',
+      effect: 'eat',
+      interactionRadius: 80,
+      lastUsed: 0
+    },
+    {
+      id: 'toyball',
+      type: 'toy',
+      x: (width) => width - 200,
+      y: (height) => height * 0.68,
+      width: 50,
+      height: 50,
+      name: 'Play Ball',
+      effect: 'play',
+      interactionRadius: 90,
+      lastUsed: 0
+    },
+    {
+      id: 'scratchpost',
+      type: 'toy',
+      x: (width) => width - 350,
+      y: (height) => height * 0.55,
+      width: 40,
+      height: 100,
+      name: 'Scratch Post',
+      effect: 'scratch',
+      interactionRadius: 70,
+      lastUsed: 0
+    },
+    {
+      id: 'waterbowl',
+      type: 'utility',
+      x: 400,
+      y: (height) => height * 0.73,
+      width: 50,
+      height: 35,
+      name: 'Water Bowl',
+      effect: 'drink',
+      interactionRadius: 75,
+      lastUsed: 0
+    }
+  ])
+
+  // Draw interactive objects
+  const drawInteractiveObjects = (ctx, width, height) => {
+    interactiveObjects.current.forEach(obj => {
+      const objX = typeof obj.x === 'function' ? obj.x(width) : obj.x
+      const objY = typeof obj.y === 'function' ? obj.y(height) : obj.y
+      
+      // Update object position for functions
+      obj.currentX = objX
+      obj.currentY = objY
+      
+      // Draw based on object type
+      switch (obj.id) {
+        case 'bed':
+          drawBed(ctx, objX, objY, obj.width, obj.height)
+          break
+        case 'foodbowl':
+          drawFoodBowl(ctx, objX, objY, obj.width, obj.height)
+          break
+        case 'toyball':
+          drawToyBall(ctx, objX, objY, obj.width, obj.height)
+          break
+        case 'scratchpost':
+          drawScratchPost(ctx, objX, objY, obj.width, obj.height)
+          break
+        case 'waterbowl':
+          drawWaterBowl(ctx, objX, objY, obj.width, obj.height)
+          break
+      }
+    })
+  }
+
+  // Individual object drawing functions
+  const drawBed = (ctx, x, y, width, height) => {
+    // Bed frame
+    ctx.fillStyle = '#8B4513'
+    ctx.fillRect(x - width/2, y - height/2, width, height)
+    
+    // Mattress
+    ctx.fillStyle = '#FFE4E1'
+    ctx.fillRect(x - width/2 + 5, y - height/2 + 5, width - 10, height - 10)
+    
+    // Pillow
+    ctx.fillStyle = '#FFC0CB'
+    ctx.beginPath()
+    ctx.ellipse(x - width/4, y - height/3, width/6, height/4, 0, 0, Math.PI * 2)
+    ctx.fill()
+    
+    // Add some comfy details
+    ctx.strokeStyle = '#DDA0DD'
+    ctx.lineWidth = 2
+    ctx.beginPath()
+    ctx.moveTo(x - width/2 + 10, y)
+    ctx.lineTo(x + width/2 - 10, y)
+    ctx.stroke()
+  }
+
+  const drawFoodBowl = (ctx, x, y, width, height) => {
+    // Bowl shadow
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.2)'
+    ctx.beginPath()
+    ctx.ellipse(x, y + 5, width/2 + 2, height/4 + 1, 0, 0, Math.PI * 2)
+    ctx.fill()
+    
+    // Bowl base
+    ctx.fillStyle = '#4169E1'
+    ctx.beginPath()
+    ctx.ellipse(x, y, width/2, height/3, 0, 0, Math.PI * 2)
+    ctx.fill()
+    
+    // Food inside
+    ctx.fillStyle = '#8B4513'
+    ctx.beginPath()
+    ctx.ellipse(x, y - 3, width/3, height/4, 0, 0, Math.PI * 2)
+    ctx.fill()
+    
+    // Bowl shine
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)'
+    ctx.beginPath()
+    ctx.ellipse(x - width/6, y - height/6, width/8, height/8, 0, 0, Math.PI * 2)
+    ctx.fill()
+  }
+
+  const drawToyBall = (ctx, x, y, width, height) => {
+    const radius = width / 2
+    
+    // Ball shadow
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.2)'
+    ctx.beginPath()
+    ctx.ellipse(x + 3, y + radius + 3, radius, radius/3, 0, 0, Math.PI * 2)
+    ctx.fill()
+    
+    // Ball body
+    ctx.fillStyle = '#FF6B6B'
+    ctx.beginPath()
+    ctx.arc(x, y, radius, 0, Math.PI * 2)
+    ctx.fill()
+    
+    // Ball stripes
+    ctx.strokeStyle = '#FF4444'
+    ctx.lineWidth = 3
+    ctx.beginPath()
+    ctx.arc(x, y, radius * 0.7, 0, Math.PI * 2)
+    ctx.stroke()
+    
+    // Ball highlight
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)'
+    ctx.beginPath()
+    ctx.arc(x - radius/3, y - radius/3, radius/4, 0, Math.PI * 2)
+    ctx.fill()
+  }
+
+  const drawScratchPost = (ctx, x, y, width, height) => {
+    // Base
+    ctx.fillStyle = '#654321'
+    ctx.fillRect(x - width, y, width * 2, height/6)
+    
+    // Post
+    ctx.fillStyle = '#8B4513'
+    ctx.fillRect(x - width/2, y - height + height/6, width, height)
+    
+    // Rope texture
+    ctx.strokeStyle = '#DEB887'
+    ctx.lineWidth = 2
+    for (let i = 0; i < height - height/6; i += 8) {
+      ctx.beginPath()
+      ctx.moveTo(x - width/2, y - i)
+      ctx.lineTo(x + width/2, y - i)
+      ctx.stroke()
+    }
+    
+    // Scratches
+    ctx.strokeStyle = '#8B4513'
+    ctx.lineWidth = 1
+    for (let i = 0; i < 5; i++) {
+      const scratchY = y - height/2 + (i * height/10)
+      ctx.beginPath()
+      ctx.moveTo(x - width/3, scratchY)
+      ctx.lineTo(x + width/4, scratchY + 5)
+      ctx.stroke()
+    }
+  }
+
+  const drawWaterBowl = (ctx, x, y, width, height) => {
+    // Bowl shadow
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.15)'
+    ctx.beginPath()
+    ctx.ellipse(x, y + 3, width/2 + 1, height/4, 0, 0, Math.PI * 2)
+    ctx.fill()
+    
+    // Bowl base
+    ctx.fillStyle = '#C0C0C0'
+    ctx.beginPath()
+    ctx.ellipse(x, y, width/2, height/3, 0, 0, Math.PI * 2)
+    ctx.fill()
+    
+    // Water
+    ctx.fillStyle = '#87CEEB'
+    ctx.beginPath()
+    ctx.ellipse(x, y - 2, width/3, height/4, 0, 0, Math.PI * 2)
+    ctx.fill()
+    
+    // Water ripples
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)'
+    ctx.lineWidth = 1
+    const ripple = Math.sin(Date.now() * 0.003) * 2
+    ctx.beginPath()
+    ctx.ellipse(x, y - 2 + ripple, width/4, height/6, 0, 0, Math.PI * 2)
+    ctx.stroke()
+  }
+
   // Draw background world
   const drawBackground = (ctx, width, height) => {
     // Gradient background
@@ -526,6 +801,23 @@ export default function PetWorld({
       ctx.arc(sparkleX, sparkleY, 2, 0, Math.PI * 2)
       ctx.fill()
     }
+    
+    // Draw interactive objects
+    drawInteractiveObjects(ctx, width, height)
+  }
+
+  // Check if pet is near any interactive object
+  const getNearbyObject = (pet) => {
+    return interactiveObjects.current.find(obj => {
+      const objX = obj.currentX || (typeof obj.x === 'function' ? obj.x(canvasRef.current?.width || 800) : obj.x)
+      const objY = obj.currentY || (typeof obj.y === 'function' ? obj.y(canvasRef.current?.height || 600) : obj.y)
+      
+      const distance = Math.sqrt(
+        (pet.x - objX) ** 2 + (pet.y - objY) ** 2
+      )
+      
+      return distance < obj.interactionRadius
+    })
   }
 
   // Advanced Pet AI and behavior system
@@ -537,20 +829,57 @@ export default function PetWorld({
     pet.behaviorTimer++
     pet.soundTimer++
     
+    // Check for nearby interactive objects
+    const nearbyObject = getNearbyObject(pet)
+    
     // Update mood based on stats and personality
     if (sleeping) {
       pet.mood = 'sleepy'
       pet.behavior = 'sleeping'
+      
+      // If pet is sleepy and there's a bed nearby, go to it
+      if (nearbyObject?.id === 'bed') {
+        pet.behavior = 'using_bed'
+        pet.targetX = nearbyObject.currentX
+        pet.targetY = nearbyObject.currentY
+        pet.speed = 1
+      }
     } else if (happiness > 85) {
       pet.mood = 'excited'
+      
+      // When excited, pets might play with toys
+      if (nearbyObject?.type === 'toy' && Math.random() < 0.3) {
+        pet.behavior = 'playing_with_toy'
+        pet.targetX = nearbyObject.currentX
+        pet.targetY = nearbyObject.currentY
+        pet.speed = 2.5
+        nearbyObject.lastUsed = Date.now()
+      }
     } else if (happiness > 60) {
       pet.mood = 'happy'
     } else if (hunger < 20) {
       pet.mood = 'grumpy'
+      
+      // When hungry, pets seek food bowl
+      const foodBowl = interactiveObjects.current.find(obj => obj.id === 'foodbowl')
+      if (foodBowl && Math.random() < 0.4) {
+        pet.behavior = 'seeking_food'
+        pet.targetX = foodBowl.currentX || foodBowl.x
+        pet.targetY = foodBowl.currentY || (typeof foodBowl.y === 'function' ? foodBowl.y(canvas.height) : foodBowl.y)
+        pet.speed = 2
+      }
     } else if (hunger < 40 && pet.socialness > 0.7) {
       pet.mood = 'attention_seeking'
     } else {
       pet.mood = 'neutral'
+      
+      // When neutral, pets might explore objects occasionally
+      if (nearbyObject && Math.random() < 0.1) {
+        pet.behavior = `exploring_${nearbyObject.id}`
+        pet.targetX = nearbyObject.currentX
+        pet.targetY = nearbyObject.currentY
+        pet.speed = 1.5
+      }
     }
 
     // Personality-based sound effects (simulate with mood changes)
@@ -641,25 +970,47 @@ export default function PetWorld({
       pet.targetY = favoriteSpot.y
       pet.speed = 2
     } else {
-      // Intelligent exploration based on personality
+      // Intelligent exploration based on personality and object awareness
       if (pet.behaviorTimer > (120 + Math.random() * 180) * (2 - pet.curiosity)) {
-        // More curious pets explore more frequently
-        const explorationRange = pet.curiosity * 0.8
-        const centerX = canvas.width / 2
-        const centerY = canvas.height / 2
-        const maxRangeX = canvas.width * explorationRange
-        const maxRangeY = canvas.height * explorationRange
         
-        pet.targetX = centerX + (Math.random() - 0.5) * maxRangeX
-        pet.targetY = centerY + (Math.random() - 0.5) * maxRangeY
-        
-        // Ensure pet stays within reasonable bounds
-        pet.targetX = Math.max(100, Math.min(canvas.width - 100, pet.targetX))
-        pet.targetY = Math.max(100, Math.min(canvas.height - 100, pet.targetY))
+        // Smart object-seeking behavior - pets remember and revisit interesting objects
+        if (Math.random() < 0.4) {
+          const availableObjects = interactiveObjects.current.filter(obj => {
+            const timeSinceLastUse = Date.now() - (obj.lastUsed || 0)
+            return timeSinceLastUse > 30000 // Haven't used in 30 seconds
+          })
+          
+          if (availableObjects.length > 0) {
+            const targetObject = availableObjects[Math.floor(Math.random() * availableObjects.length)]
+            const objX = typeof targetObject.x === 'function' ? targetObject.x(canvas.width) : targetObject.x
+            const objY = typeof targetObject.y === 'function' ? targetObject.y(canvas.height) : targetObject.y
+            
+            pet.targetX = objX + (Math.random() - 0.5) * 50 // Add some randomness around object
+            pet.targetY = objY + (Math.random() - 0.5) * 50
+            pet.behavior = `seeking_${targetObject.id}`
+            pet.speed = 2
+            pet.behaviorTimer = 0
+          }
+        } else {
+          // Regular exploration when not seeking specific objects
+          const explorationRange = pet.curiosity * 0.8
+          const centerX = canvas.width / 2
+          const centerY = canvas.height / 2
+          const maxRangeX = canvas.width * explorationRange
+          const maxRangeY = canvas.height * explorationRange
+          
+          pet.targetX = centerX + (Math.random() - 0.5) * maxRangeX
+          pet.targetY = centerY + (Math.random() - 0.5) * maxRangeY
+          
+          // Ensure pet stays within reasonable bounds
+          pet.targetX = Math.max(100, Math.min(canvas.width - 100, pet.targetX))
+          pet.targetY = Math.max(canvas.height * 0.2, Math.min(canvas.height * 0.75, pet.targetY))
+          
+          pet.behavior = 'exploring'
+          pet.speed = 1.5 + pet.curiosity * 0.5
+        }
         
         pet.behaviorTimer = 0
-        pet.behavior = 'exploring'
-        pet.speed = 1.5 + pet.curiosity * 0.5
       }
     }
 

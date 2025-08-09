@@ -54,6 +54,10 @@ import AdventurePanel from './components/AdventurePanel'
 import LevelUpNotification from './components/LevelUpNotification'
 import multiplayerService from './services/MultiplayerService'
 import ChatSidebar from './components/ChatSidebar'
+import TokenNotification, { useTokenNotification } from './components/TokenNotification'
+import AboutPage from './components/AboutPage'
+import RoadmapPage from './components/RoadmapPage'
+import StatusPage from './components/StatusPage'
 
 const AI_RESPONSE_DELAY_MS = 800
 
@@ -303,6 +307,13 @@ function HomeScreen({ selectedPet, setSelectedPet, goBattle, goAdventure, tokens
     load()
   }, [wallet?.publicKey])
 
+  // Listen for shop open event from SideDock
+  useEffect(() => {
+    const handleShowShop = () => setShowShop(true)
+    window.addEventListener('showShop', handleShowShop)
+    return () => window.removeEventListener('showShop', handleShowShop)
+  }, [])
+
   useEffect(() => {
     const pk = wallet?.publicKey?.toBase58?.()
     if (!pk) return
@@ -469,6 +480,7 @@ function MainApp() {
   const giveTokens = (amount) => {
     unifiedProgression.addTokens(amount)
     refreshGameData()
+    showTokenChange(amount, 'gain')
   }
   
   const updatePetStats = (updates) => {
@@ -526,6 +538,10 @@ function MainApp() {
   const [petName, setPetName] = useState('')
   const [levelUpData, setLevelUpData] = useState(null)
   const [isChatCollapsed, setIsChatCollapsed] = useState(true)
+  const { notifications, showTokenChange, removeNotification } = useTokenNotification()
+  const [showAbout, setShowAbout] = useState(false)
+  const [showRoadmap, setShowRoadmap] = useState(false)
+  const [showStatus, setShowStatus] = useState(false)
 
   // persist per-wallet pet state
   const [walletPubkey, setWalletPubkey] = useState(null)
@@ -891,9 +907,26 @@ function MainApp() {
       {route === 'home' && (
         <>
           <SideDock
-            onFeed={() => {}} // These will be handled by HomeScreen
-            onPlay={() => {}}
-            onShop={() => {}} 
+            onFeed={() => {
+              // Trigger feed action in HomeScreen via unified progression
+              unifiedProgression.feedPet({ hunger: 25, happiness: 5 });
+              setGameData(unifiedProgression.getAllData());
+              showTokenChange(-5, 'loss'); // Show token cost for feeding
+            }}
+            onPlay={() => {
+              // Trigger play action in HomeScreen via unified progression
+              unifiedProgression.playWithPet({ happiness: 25, hunger: -3 });
+              setGameData(unifiedProgression.getAllData());
+              showTokenChange(-3, 'loss'); // Show token cost for playing
+            }}
+            onShop={() => {
+              // Find the HomeScreen and trigger shop display
+              const homeScreenElement = document.querySelector('.center');
+              if (homeScreenElement) {
+                // Dispatch a custom event that HomeScreen can listen for
+                window.dispatchEvent(new CustomEvent('showShop'));
+              }
+            }} 
             onQuests={() => setShowQuests(true)}
             onAdventure={() => setRoute('adventure')}
             onBattle={() => setRoute('battle')}
@@ -919,11 +952,27 @@ function MainApp() {
               console.log('💰 Wallet clicked')
               setRoute('wallet')
             }}
+            onAbout={() => setShowAbout(true)}
+            onRoadmap={() => setShowRoadmap(true)}
+            onStatus={() => setShowStatus(true)}
           />
           <BottomDock
-            onFeed={() => {}} // These will be handled by HomeScreen
-            onPlay={() => {}}
-            onShop={() => {}}
+            onFeed={() => {
+              // Trigger feed action in HomeScreen via unified progression
+              unifiedProgression.feedPet({ hunger: 25, happiness: 5 });
+              setGameData(unifiedProgression.getAllData());
+              showTokenChange(-5, 'loss'); // Show token cost for feeding
+            }}
+            onPlay={() => {
+              // Trigger play action in HomeScreen via unified progression
+              unifiedProgression.playWithPet({ happiness: 25, hunger: -3 });
+              setGameData(unifiedProgression.getAllData());
+              showTokenChange(-3, 'loss'); // Show token cost for playing
+            }}
+            onShop={() => {
+              // Find the HomeScreen and trigger shop display
+              window.dispatchEvent(new CustomEvent('showShop'));
+            }}
             onQuests={() => setShowQuests(true)}
             onAdventure={() => setRoute('adventure')}
             onBattle={() => setRoute('battle')}
@@ -980,6 +1029,21 @@ function MainApp() {
           setTimeout(() => callback(personalityResponse), AI_RESPONSE_DELAY_MS)
         }}
       />
+      
+      {/* Token Notifications */}
+      {notifications.map(notification => (
+        <TokenNotification
+          key={notification.id}
+          amount={notification.amount}
+          type={notification.type}
+          onComplete={() => removeNotification(notification.id)}
+        />
+      ))}
+      
+      {/* Info Pages */}
+      {showAbout && <AboutPage onBack={() => setShowAbout(false)} />}
+      {showRoadmap && <RoadmapPage onBack={() => setShowRoadmap(false)} />}
+      {showStatus && <StatusPage onBack={() => setShowStatus(false)} />}
       
       {/* Removed global footer to avoid duplicate */}
     </div>

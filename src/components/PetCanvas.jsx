@@ -381,7 +381,7 @@ export default function PetCanvas({ petId = 'forest-fox', actionSignal, onPet, t
     // Mouse events
     canvas.addEventListener('mousemove', onMove)
     
-    // Touch events for mobile
+    // Touch events for mobile (passive: false needed to prevent scrolling during pet interaction)
     canvas.addEventListener('touchstart', onTouchStart, { passive: false })
     canvas.addEventListener('touchmove', onTouchMove, { passive: false })
 

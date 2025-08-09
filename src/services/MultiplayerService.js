@@ -1,5 +1,6 @@
 // Multiplayer WebSocket service for real-time battles and leaderboards
 import { io } from 'socket.io-client';
+import { getApiUrl, WEBSOCKET_URL } from '../config/api.js';
 
 class MultiplayerService {
   constructor() {
@@ -9,7 +10,7 @@ class MultiplayerService {
     this.playerId = null;
   }
 
-  connect(serverUrl = 'http://localhost:8787') {
+  connect(serverUrl = WEBSOCKET_URL) {
     if (this.socket) {
       console.log('🔌 Already connected to multiplayer server');
       return Promise.resolve();
@@ -17,6 +18,13 @@ class MultiplayerService {
 
     return new Promise((resolve, reject) => {
       try {
+        // Only connect via WebSocket if server URL is available (development mode)
+        if (!serverUrl) {
+          console.log('🚫 WebSocket not available in production mode');
+          resolve();
+          return;
+        }
+        
         this.socket = io(serverUrl, {
           transports: ['websocket'],
           timeout: 5000
@@ -126,7 +134,7 @@ class MultiplayerService {
   // HTTP API fallback for when WebSocket is not available
   async simulateBattle(player1, player2) {
     try {
-      const response = await fetch('http://localhost:8787/api/battle/simulate', {
+      const response = await fetch(getApiUrl('BATTLE_SIMULATE'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -158,7 +166,7 @@ class MultiplayerService {
 
   async getLeaderboard() {
     try {
-      const response = await fetch('http://localhost:8787/api/leaderboard');
+      const response = await fetch(getApiUrl('LEADERBOARD'));
       if (response.ok) {
         return await response.json();
       }
@@ -172,7 +180,7 @@ class MultiplayerService {
 
   async getServerStatus() {
     try {
-      const response = await fetch('http://localhost:8787/api/status');
+      const response = await fetch(getApiUrl('STATUS'));
       if (response.ok) {
         return await response.json();
       }
