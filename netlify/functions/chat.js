@@ -36,6 +36,14 @@ exports.handler = async (event) => {
 
     let output = null
     let lastError = null
+    let debugInfo = {
+      hasModelUrl: !!HF_MODEL_URL,
+      hasApiKey: !!HF_API_KEY,
+      modelUrlLength: HF_MODEL_URL ? HF_MODEL_URL.length : 0,
+      apiKeyLength: HF_API_KEY ? HF_API_KEY.length : 0,
+      input: sanitizedInput,
+      attempts: []
+    }
 
     if (HF_MODEL_URL && HF_API_KEY) {
       const controller = new AbortController()
@@ -52,39 +60,71 @@ exports.handler = async (event) => {
           body: JSON.stringify(payloadA),
           signal: controller.signal,
         })
+        
+        debugInfo.attempts.push({
+          attempt: 'A_messages_format',
+          status: res.status,
+          ok: res.ok,
+          payload: payloadA
+        })
+        
         if (res.ok) {
           const data = await res.json()
+          debugInfo.attempts[debugInfo.attempts.length - 1].responseType = typeof data
+          debugInfo.attempts[debugInfo.attempts.length - 1].responseKeys = Object.keys(data || {})
           output = Array.isArray(data) ? (data[0]?.generated_text || null) : (data?.generated_text || null)
         } else {
-          lastError = { status: res.status, text: await res.text().catch(() => '') }
+          const errorText = await res.text().catch(() => '')
+          lastError = { status: res.status, text: errorText }
+          debugInfo.attempts[debugInfo.attempts.length - 1].error = errorText
         }
         // Attempt B: plain text input
         if (!output) {
+          const payloadB = { inputs: sanitizedInput, parameters: { max_new_tokens: 160, temperature: 0.8, return_full_text: false } }
           res = await fetch(HF_MODEL_URL, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${HF_API_KEY}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ inputs: sanitizedInput, parameters: { max_new_tokens: 160, temperature: 0.8, return_full_text: false } }),
+            body: JSON.stringify(payloadB),
             signal: controller.signal,
           })
+          
+          debugInfo.attempts.push({
+            attempt: 'B_plain_text',
+            status: res.status,
+            ok: res.ok,
+            payload: payloadB
+          })
+          
           if (res.ok) {
             const data = await res.json()
+            debugInfo.attempts[debugInfo.attempts.length - 1].responseType = typeof data
+            debugInfo.attempts[debugInfo.attempts.length - 1].responseKeys = Object.keys(data || {})
             output = Array.isArray(data) ? (data[0]?.generated_text || null) : (data?.generated_text || null)
           } else {
-            lastError = { status: res.status, text: await res.text().catch(() => '') }
+            const errorText = await res.text().catch(() => '')
+            lastError = { status: res.status, text: errorText }
+            debugInfo.attempts[debugInfo.attempts.length - 1].error = errorText
           }
         }
       } catch (e) {
         lastError = { message: String(e && e.message ? e.message : e) }
+        debugInfo.attempts.push({
+          attempt: 'exception',
+          error: e.message,
+          stack: e.stack
+        })
       } finally {
         clearTimeout(id)
       }
+    } else {
+      debugInfo.skippedReason = 'Missing HF_MODEL_URL or HF_API_KEY'
     }
 
     if (!output) {
       output = "I'm your pixel pet! Tell me if you want to feed or play."
     }
 
-    const body = DEBUG ? { output, debug: { hasModel: !!HF_MODEL_URL, lastError } } : { output }
+    const body = DEBUG ? { output, debug: debugInfo, lastError } : { output }
 
     return {
       statusCode: 200,

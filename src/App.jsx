@@ -44,12 +44,16 @@ import LoadingSpinner, { ChatLoadingIndicator } from './components/LoadingSpinne
 const AI_RESPONSE_DELAY_MS = 800
 
 async function chatWithOssModel(message) {
-  const url = import.meta.env.PUBLIC_CHAT_URL || '/chat'
+  const url = import.meta.env.PUBLIC_CHAT_URL || '/.netlify/functions/chat'
+  // Add debug parameter to enable detailed logging
+  const debugUrl = `${url}?debug=1`
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), 15000) // 15 second timeout
   
   try {
-    const res = await fetch(url, {
+    console.log('Making chat request to:', debugUrl, 'with message:', message)
+    
+    const res = await fetch(debugUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ input: message }),
@@ -58,12 +62,22 @@ async function chatWithOssModel(message) {
     
     clearTimeout(timeoutId)
     
+    console.log('Chat response status:', res.status, res.statusText)
+    
     if (!res.ok) {
-      console.warn('Chat API error:', res.status, res.statusText)
+      const errorText = await res.text().catch(() => 'Unknown error')
+      console.warn('Chat API error:', res.status, res.statusText, errorText)
       return null
     }
     
     const data = await res.json()
+    console.log('Chat response data:', data)
+    
+    // Log debug information if available
+    if (data.debug) {
+      console.log('HuggingFace Debug Info:', data.debug)
+    }
+    
     return data?.output || data?.text || null
   } catch (error) {
     clearTimeout(timeoutId)
@@ -71,7 +85,7 @@ async function chatWithOssModel(message) {
     if (error.name === 'AbortError') {
       console.warn('Chat request timed out')
     } else {
-      console.error('Chat error:', error.message)
+      console.error('Chat error:', error.message, error)
     }
     return null
   }
@@ -474,7 +488,6 @@ function MainApp() {
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           <WalletMultiButton />
-          <WalletHelp connected={!!window?.solana?.isConnected} />
           <AudioPlayer />
           <ThemeToggle />
         </div>
@@ -485,18 +498,21 @@ function MainApp() {
             {showDaily && <DailyCheckin onClaim={reward} onClose={() => setShowDaily(false)} />}
             {showLB && <Leaderboard onClose={() => setShowLB(false)} />}
             {showQuests && <Quests onReward={reward} onClose={() => setShowQuests(false)} />}
-            <div className="main-grid"><div className="center"><HomeScreen
-              selectedPet={selectedPet}
-              setSelectedPet={setSelectedPet}
-              tokens={tokens}
-              setTokens={setTokens}
-              goBattle={() => setRoute('battle')}
-              goAdventure={() => setRoute('adventure')}
-              openDaily={() => setShowDaily(true)}
-              openLeaderboard={() => setShowLB(true)}
-              openQuests={() => setShowQuests(true)}
-              petName={petName}
-            /></div></div>
+            <div className="main-grid"><div className="center">
+              <HomeScreen
+                selectedPet={selectedPet}
+                setSelectedPet={setSelectedPet}
+                tokens={tokens}
+                setTokens={setTokens}
+                goBattle={() => setRoute('battle')}
+                goAdventure={() => setRoute('adventure')}
+                openDaily={() => setShowDaily(true)}
+                openLeaderboard={() => setShowLB(true)}
+                openQuests={() => setShowQuests(true)}
+                petName={petName}
+              />
+              <WalletHelp connected={!!walletPubkey} />
+            </div></div>
           </>
         )}
         {route === 'battle' && (

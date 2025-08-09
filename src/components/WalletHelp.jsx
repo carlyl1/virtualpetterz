@@ -5,6 +5,7 @@ export default function WalletHelp({ connected }) {
   const { wallet, connecting, disconnecting } = useWallet()
   const [connectionError, setConnectionError] = useState(null)
   const [isRetrying, setIsRetrying] = useState(false)
+  const [isDismissed, setIsDismissed] = useState(() => localStorage.getItem('walletHelpDismissed') === 'true')
   
   const hasProvider = typeof window !== 'undefined' && !!window.solana
   
@@ -12,6 +13,8 @@ export default function WalletHelp({ connected }) {
     // Clear error when connection succeeds
     if (connected) {
       setConnectionError(null)
+      setIsDismissed(true)
+      localStorage.setItem('walletHelpDismissed', 'true')
     }
   }, [connected])
   
@@ -43,8 +46,8 @@ export default function WalletHelp({ connected }) {
     }
   }
   
-  // Don't show anything if connected successfully
-  if (connected && !connectionError) return null
+  // Don't show anything if connected, dismissed, or has no major issues
+  if (connected || (isDismissed && !connectionError)) return null
   
   // Connection in progress
   if (connecting) {
@@ -91,7 +94,11 @@ export default function WalletHelp({ connected }) {
             {isRetrying ? 'Retrying...' : 'Retry Connection'}
           </button>
           <button 
-            onClick={() => setConnectionError(null)}
+            onClick={() => {
+              setConnectionError(null)
+              setIsDismissed(true)
+              localStorage.setItem('walletHelpDismissed', 'true')
+            }}
             style={{ 
               background: 'transparent', 
               color: '#fcc', 
@@ -108,43 +115,88 @@ export default function WalletHelp({ connected }) {
     )
   }
   
-  // No provider detected
+  // No provider detected - compact notification
   if (!hasProvider) {
     return (
-      <div style={{ background: '#221', border: '2px solid #f0a', borderRadius: 8, padding: 10, color: '#fbd', marginTop: 8 }}>
-        <div style={{ fontWeight: 'bold', marginBottom: 6 }}>Phantom wallet not detected</div>
-        <div style={{ fontSize: 12, marginBottom: 8 }}>Install Phantom to connect your Solana wallet and claim your unique pet.</div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <a href="https://phantom.app/download" target="_blank" rel="noreferrer" style={{ background: '#f0a', color: '#120', padding: '8px 10px', borderRadius: 6, fontWeight: 'bold', textDecoration: 'none' }}>Get Phantom</a>
-          <a href="https://docs.phantom.app/" target="_blank" rel="noreferrer" style={{ background: '#f0a', color: '#120', padding: '8px 10px', borderRadius: 6, fontWeight: 'bold', textDecoration: 'none' }}>Help</a>
+      <div style={{ 
+        background: 'rgba(255, 0, 170, 0.1)', 
+        border: '1px solid rgba(255, 0, 170, 0.3)', 
+        borderRadius: 6, 
+        padding: 8, 
+        color: '#fbd', 
+        marginTop: 8,
+        fontSize: 12,
+        opacity: 0.8
+      }}>
+        <div style={{ marginBottom: 4, fontSize: 11, opacity: 0.8 }}>💡 Tip: Install Phantom wallet to save progress</div>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <a href="https://phantom.app/download" target="_blank" rel="noreferrer" style={{ 
+            background: 'rgba(255, 0, 170, 0.8)', 
+            color: '#120', 
+            padding: '4px 8px', 
+            borderRadius: 4, 
+            fontWeight: 'bold', 
+            textDecoration: 'none',
+            fontSize: 10
+          }}>Get Phantom</a>
+          <button 
+            onClick={() => {
+              setIsDismissed(true)
+              localStorage.setItem('walletHelpDismissed', 'true')
+            }}
+            style={{
+              background: 'transparent',
+              color: '#fbd',
+              border: '1px solid rgba(255, 0, 170, 0.3)',
+              padding: '4px 8px',
+              borderRadius: 4,
+              cursor: 'pointer',
+              fontSize: 10
+            }}
+          >
+            Dismiss
+          </button>
         </div>
       </div>
     )
   }
   
-  // Provider exists but not connected
-  return (
-    <div style={{ background: '#112', border: '2px solid var(--accent)', borderRadius: 8, padding: 10, color: 'var(--text)', marginTop: 8 }}>
-      <div style={{ fontWeight: 'bold', marginBottom: 6 }}>Wallet not connected</div>
-      <div style={{ fontSize: 12, marginBottom: 8 }}>Connect your Phantom wallet to save your pet's progress and unlock all features.</div>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <button 
-          onClick={retryConnection}
-          disabled={isRetrying}
-          style={{ 
-            background: 'var(--accent)', 
-            color: 'var(--bg)', 
-            border: 'none',
-            padding: '8px 12px', 
-            borderRadius: 4, 
-            fontWeight: 'bold', 
-            cursor: isRetrying ? 'not-allowed' : 'pointer',
-            opacity: isRetrying ? 0.6 : 1
-          }}
-        >
-          {isRetrying ? 'Connecting...' : 'Connect Wallet'}
-        </button>
+  // Provider exists but not connected - only show if never dismissed
+  if (!isDismissed) {
+    return (
+      <div style={{ 
+        background: 'rgba(0, 255, 153, 0.05)', 
+        border: '1px solid rgba(0, 255, 153, 0.2)', 
+        borderRadius: 6, 
+        padding: 8, 
+        color: 'var(--text)', 
+        marginTop: 8,
+        fontSize: 12,
+        opacity: 0.8
+      }}>
+        <div style={{ marginBottom: 4, fontSize: 11, opacity: 0.8 }}>💡 Tip: Connect wallet to save your pet's progress</div>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <button 
+            onClick={() => {
+              setIsDismissed(true)
+              localStorage.setItem('walletHelpDismissed', 'true')
+            }}
+            style={{
+              background: 'transparent',
+              color: 'var(--accent)',
+              border: '1px solid rgba(0, 255, 153, 0.3)',
+              padding: '4px 8px',
+              borderRadius: 4,
+              cursor: 'pointer',
+              fontSize: 10
+            }}
+          >
+            Got it
+          </button>
+        </div>
       </div>
-    </div>
-  )
+    )
+  }
+  
+  return null
 }
