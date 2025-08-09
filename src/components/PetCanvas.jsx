@@ -447,12 +447,43 @@ export default function PetCanvas({ petId = 'forest-fox', actionSignal, onPet, t
         ref={ref} 
         width={1200} 
         height={700} 
-        style={{ width: '100%', height: 'min(60vh, 640px)', cursor: 'pointer', touchAction: 'none' }} 
+        style={{ 
+          width: '100%', 
+          height: 'min(65vh, 720px)', 
+          cursor: 'pointer', 
+          touchAction: 'none',
+          borderRadius: '8px',
+          boxShadow: '0 4px 20px rgba(0, 255, 153, 0.1)'
+        }} 
         onClick={handleInteraction}
         onTouchEnd={handleInteraction}
       />
       <div style={{ position: 'absolute', top: 8, right: 8 }}>
-        <button onClick={() => setSleeping((s) => !s)}>{sleeping ? 'Wake' : 'Sleep'}</button>
+        <button 
+          onClick={() => setSleeping((s) => !s)}
+          style={{
+            padding: '4px 8px',
+            fontSize: '10px',
+            background: 'rgba(0, 255, 153, 0.6)',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer',
+            color: '#000',
+            opacity: 0.7,
+            transition: 'all 0.2s ease',
+            backdropFilter: 'blur(2px)'
+          }}
+          onMouseEnter={(e) => {
+            e.target.style.opacity = '1'
+            e.target.style.background = 'rgba(0, 255, 153, 0.9)'
+          }}
+          onMouseLeave={(e) => {
+            e.target.style.opacity = '0.7'
+            e.target.style.background = 'rgba(0, 255, 153, 0.6)'
+          }}
+        >
+          {sleeping ? 'Wake' : 'Sleep'}
+        </button>
       </div>
     </div>
   )
