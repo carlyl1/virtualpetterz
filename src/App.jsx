@@ -299,12 +299,6 @@ function HomeScreen({ selectedPet, setSelectedPet, goBattle, goAdventure, tokens
         onDaily={openDaily}
         onLeaderboard={openLeaderboard}
       />
-      <footer>
-        <small>
-          <a href="/about">About</a> · <a href="/roadmap">Roadmap</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a>
-        </small>
-        <small>Token spends are simulated. Real integration coming soon!</small>
-      </footer>
     </div>
   )
 }
