@@ -84,7 +84,8 @@ exports.handler = async (event) => {
       }
     }
 
-    const HF_MODEL_URL = process.env.HF_MODEL_URL
+    const RAW_HF_MODEL_URL = process.env.HF_MODEL_URL || ''
+    const HF_MODEL_URL = RAW_HF_MODEL_URL.trim().replace(/\/+$/, '')
     const HF_API_KEY = process.env.HF_API_KEY
     const DEBUG = (process.env.DEBUG_CHAT || '') === '1' || (event.queryStringParameters && event.queryStringParameters.debug === '1')
 
@@ -97,7 +98,8 @@ exports.handler = async (event) => {
       apiKeyLength: HF_API_KEY ? HF_API_KEY.length : 0,
       input: sanitizedInput,
       attempts: [],
-      modelUrlPreview: HF_MODEL_URL ? HF_MODEL_URL.replace(/^https:\/\/api-inference\.huggingface\.co\/models\//, '...models/') : null
+      modelUrlPreview: HF_MODEL_URL ? (HF_MODEL_URL.slice(0, 40) + '…' + HF_MODEL_URL.slice(-20)) : null,
+      modelUrlTailCharCodes: HF_MODEL_URL ? HF_MODEL_URL.slice(-3).split('').map((c)=>c.charCodeAt(0)) : []
     }
 
     if (HF_MODEL_URL && HF_API_KEY) {
@@ -196,7 +198,7 @@ exports.handler = async (event) => {
     }
 
     if (!output) {
-      output = "I'm just a simple pet, but I love chatting with you!"
+      output = "I'm your pixel pet! Tell me if you want to feed or play."
     }
 
     const body = DEBUG ? { output, debug: debugInfo, lastError } : { output }
